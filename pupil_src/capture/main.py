@@ -71,7 +71,7 @@ def main():
     # world_src = "/Users/mkassner/Pupil/pupil_google_code/wiki/videos/eye_simple_filter.avi"
 
     # Camera video size in pixels (width,height)
-    eye_size = (320,240)
+    eye_size = (640,360)
     world_size = (1280,720)
 
     # Create and initialize IPC
@@ -98,8 +98,8 @@ def main():
     # Exit / clean-up
     p_eye_left.join()
     p_eye_right.join()
-    
-    
+
+
     # flushing queue incase world process did not exit gracefully
     while not g_pool.pupil_queue.empty():
         g_pool.pupil_queue.get()
