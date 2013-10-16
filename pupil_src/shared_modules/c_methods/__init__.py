@@ -25,7 +25,7 @@ import os,sys
 
 if getattr(sys, 'frozen', False):
     # we are running in a |PyInstaller| bundle
-    dll_path = 'methods.so'
+    dll_path = os.path.join(sys._MEIPASS,'methods.so')
 else:
     # we are running in a normal Python environment
     basedir = os.path.dirname(__file__)
@@ -51,6 +51,7 @@ else:
     ### C-Types binary loading
     if not os.path.isfile(dll_path):
         raise Exception("c-methods Error could not compile binary.")
+
 
 __methods_dll = CDLL(dll_path)
 

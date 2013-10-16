@@ -6,15 +6,31 @@ Usage:
 """
 
 from setuptools import setup
+import sys,os
 
-APP = ['../pupil_src/capture/build_test.py']
+
+# making shared modules accesible
+pupil_base_dir = os.path.abspath(__file__).rsplit(os.path.sep, 2)[0]
+shared_modules = os.path.join(pupil_base_dir, 'pupil_src', 'shared_modules')
+sys.path.append(shared_modules)
+
+APP = ['../pupil_src/capture/main.py']
 DATA_FILES = []
 OPTIONS = {'argv_emulation': True,
-            'includes': 'cv2'
+			#we need to pull our precompiled c binaries into the resources folder
+			'resources':[os.path.join(shared_modules,'c_methods','methods.so'),
+						 os.path.join(shared_modules,'uvc_capture','mac_video','uvcc.so'),
+						 #here we pull some homebrew genereated dylibs into the resources folder
+						 '/usr/local/Cellar/glfw3/3.0.2/lib/libglfw3.dylib',
+						 '/usr/local/Cellar/anttweakbar/1.16/lib/libAntTweakBar.dylib' ],
+			'iconfile':'macos_icon.icns'
             }
 setup(
+	name='Pupil',
+	author='Pupil Labs: Moritz Kassner, William Patera',
     app=APP,
     data_files=DATA_FILES,
     options={'py2app': OPTIONS},
     setup_requires=['py2app'],
 )
+
