@@ -1,0 +1,60 @@
+Player: 2013-12-31 17:04:59,088 - __main__ - WARNING - You did not supply a datafolder when you called this script.                
+I will use the path hardcoded into the script instead.
+Player: 2013-12-31 17:04:59,089 - __main__ - DEBUG - Recording version v0.3.6.1-68-g3b2e87e , 36
+Player: 2013-12-31 17:04:59,135 - uvc_capture - INFO - Using /Users/mkassner/Pupil/pupil_code/recordings/2013_12_11/000/world.avi as video source
+Player: 2013-12-31 17:04:59,139 - uvc_capture - INFO - trying to load supplied timestamps with video at: /Users/mkassner/Pupil/pupil_code/recordings/2013_12_11/000/timestamps.npy
+Player: 2013-12-31 17:04:59,140 - uvc_capture - INFO - loaded 917 timestamps
+Player: 2013-12-31 17:05:18,292 - uvc_capture - DEBUG - seeking to frame: 192
+Player: 2013-12-31 17:05:18,324 - uvc_capture - DEBUG - seeking to frame: 207
+Player: 2013-12-31 17:05:18,364 - uvc_capture - DEBUG - seeking to frame: 225
+Player: 2013-12-31 17:05:18,404 - uvc_capture - DEBUG - seeking to frame: 246
+Player: 2013-12-31 17:05:18,435 - uvc_capture - DEBUG - seeking to frame: 272
+Player: 2013-12-31 17:05:18,463 - uvc_capture - DEBUG - seeking to frame: 296
+Player: 2013-12-31 17:05:18,493 - uvc_capture - DEBUG - seeking to frame: 316
+Player: 2013-12-31 17:05:18,809 - uvc_capture - DEBUG - seeking to frame: 328
+Player: 2013-12-31 17:05:18,842 - uvc_capture - DEBUG - seeking to frame: 347
+Player: 2013-12-31 17:05:18,874 - uvc_capture - DEBUG - seeking to frame: 364
+Player: 2013-12-31 17:05:18,898 - uvc_capture - DEBUG - seeking to frame: 414
+Player: 2013-12-31 17:05:18,923 - uvc_capture - DEBUG - seeking to frame: 436
+Player: 2013-12-31 17:05:18,948 - uvc_capture - DEBUG - seeking to frame: 460
+Player: 2013-12-31 17:05:18,972 - uvc_capture - DEBUG - seeking to frame: 469
+Player: 2013-12-31 17:05:19,007 - uvc_capture - DEBUG - seeking to frame: 482
+Player: 2013-12-31 17:05:19,043 - uvc_capture - DEBUG - seeking to frame: 494
+Player: 2013-12-31 17:05:19,111 - uvc_capture - DEBUG - seeking to frame: 505
+Player: 2013-12-31 17:05:19,195 - uvc_capture - DEBUG - seeking to frame: 515
+Player: 2013-12-31 17:05:19,328 - uvc_capture - DEBUG - seeking to frame: 524
+Player: 2013-12-31 17:05:19,731 - uvc_capture - DEBUG - seeking to frame: 524
+Player: 2013-12-31 17:05:25,580 - uvc_capture - DEBUG - seeking to frame: 513
+Player: 2013-12-31 17:05:27,035 - uvc_capture - DEBUG - seeking to frame: 522
+Player: 2013-12-31 17:05:28,710 - uvc_capture - DEBUG - seeking to frame: 526
+Player: 2013-12-31 17:05:43,789 - uvc_capture - DEBUG - seeking to frame: 516
+Player: 2013-12-31 17:05:44,944 - uvc_capture - DEBUG - seeking to frame: 525
+Player: 2013-12-31 17:05:47,625 - uvc_capture - DEBUG - seeking to frame: 527
+Player: 2013-12-31 17:05:53,540 - uvc_capture - DEBUG - seeking to frame: 507
+Player: 2013-12-31 17:05:53,571 - uvc_capture - DEBUG - seeking to frame: 488
+Player: 2013-12-31 17:05:53,599 - uvc_capture - DEBUG - seeking to frame: 477
+Player: 2013-12-31 17:05:53,628 - uvc_capture - DEBUG - seeking to frame: 458
+Player: 2013-12-31 17:05:53,663 - uvc_capture - DEBUG - seeking to frame: 448
+Player: 2013-12-31 17:05:54,159 - uvc_capture - DEBUG - seeking to frame: 437
+Player: 2013-12-31 17:05:54,196 - uvc_capture - DEBUG - seeking to frame: 379
+Player: 2013-12-31 17:05:54,222 - uvc_capture - DEBUG - seeking to frame: 345
+Player: 2013-12-31 17:05:54,250 - uvc_capture - DEBUG - seeking to frame: 247
+Player: 2013-12-31 17:05:54,279 - uvc_capture - DEBUG - seeking to frame: 162
+Player: 2013-12-31 17:05:54,306 - uvc_capture - DEBUG - seeking to frame: 124
+Player: 2013-12-31 17:05:54,330 - uvc_capture - DEBUG - seeking to frame: 113
+Player: 2013-12-31 17:05:54,729 - uvc_capture - DEBUG - seeking to frame: 103
+Player: 2013-12-31 17:05:54,761 - uvc_capture - DEBUG - seeking to frame: 90
+Player: 2013-12-31 17:05:54,788 - uvc_capture - DEBUG - seeking to frame: 79
+Player: 2013-12-31 17:05:54,816 - uvc_capture - DEBUG - seeking to frame: 58
+Player: 2013-12-31 17:05:54,850 - uvc_capture - DEBUG - seeking to frame: 41
+Player: 2013-12-31 17:05:54,878 - uvc_capture - DEBUG - seeking to frame: 28
+Player: 2013-12-31 17:05:54,911 - uvc_capture - DEBUG - seeking to frame: 17
+Player: 2013-12-31 17:05:54,946 - uvc_capture - DEBUG - seeking to frame: 5
+Player: 2013-12-31 17:05:57,510 - uvc_capture - DEBUG - seeking to frame: 0
+Player: 2013-12-31 17:06:10,726 - uvc_capture - DEBUG - seeking to frame: 92
+Player: 2013-12-31 17:06:10,754 - uvc_capture - DEBUG - seeking to frame: 80
+Player: 2013-12-31 17:06:10,783 - uvc_capture - DEBUG - seeking to frame: 42
+Player: 2013-12-31 17:06:10,808 - uvc_capture - DEBUG - seeking to frame: 7
+Player: 2013-12-31 17:06:11,397 - uvc_capture - DEBUG - seeking to frame: 0
+Player: 2013-12-31 17:06:12,655 - __main__ - INFO - Process closing from window
+Player: 2013-12-31 17:06:12,664 - __main__ - DEBUG - Process done
