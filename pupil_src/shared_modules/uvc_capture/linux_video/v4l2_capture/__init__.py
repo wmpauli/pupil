@@ -320,7 +320,8 @@ class VideoCapture(object):
             Attach each camera to a single USB Controller, this may solve the problem."%self.src_str)
 
         if self._active_buffer:
-            dll.release_buffer(self.device,byref(self._active_buffer))
+            if dll.release_buffer(self.device,byref(self._active_buffer)) == -1:
+                logger.warning("Failed to release_buffer. Please report the full Log in settings dir.")
 
         buf  = v4l2_buffer()
         buf_ptr =  dll.get_buffer(self.device,byref(buf))
@@ -370,7 +371,7 @@ class VideoCapture(object):
     def cleanup(self):
         self._stop()
         self._uninit()
-        self._close()     
+        self._close()
 
     def __del__(self):
         self._stop()

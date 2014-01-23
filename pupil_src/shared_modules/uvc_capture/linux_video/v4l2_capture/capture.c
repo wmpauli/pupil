@@ -116,7 +116,7 @@ void *get_buffer(int fd,struct v4l2_buffer *buf){
 		clock_gettime(CLOCK_MONOTONIC_RAW, &raw_tv);
 		// printf("current time %ld, %ld\n", raw_tv.tv_sec, raw_tv.tv_nsec);
 		buf->timestamp.tv_sec = (long) raw_tv.tv_sec;
-		buf->timestamp.tv_usec = raw_tv.tv_nsec/1000; 
+		buf->timestamp.tv_usec = raw_tv.tv_nsec/1000;
 		return buffers[buf->index].start;
 	}
 }
@@ -124,7 +124,8 @@ void *get_buffer(int fd,struct v4l2_buffer *buf){
 
 int release_buffer(int fd, struct v4l2_buffer *buf){
 	if (-1 == xioctl(fd, VIDIOC_QBUF, buf))
-			errno_exit("VIDIOC_QBUF");
+			// errno_exit("VIDIOC_QBUF");
+		return -1;
 	return 1;
 }
 
@@ -334,8 +335,8 @@ int verify_device(int fd)
 // 	if (-1 == xioctl(fd, VIDIOC_G_FMT, &fmt))
 // 		errno_exit("VIDIOC_G_FMT");
 // 	fprintf(stderr, "Set resolution: %u x %u \r\n",fmt.fmt.pix.width, fmt.fmt.pix.height );
-// 	*width = fmt.fmt.pix.width; 
-// 	*height = fmt.fmt.pix.height; 
+// 	*width = fmt.fmt.pix.width;
+// 	*height = fmt.fmt.pix.height;
 
 // 	/* Buggy driver paranoia. */
 // 	min = fmt.fmt.pix.width * 2;
@@ -364,7 +365,7 @@ int verify_device(int fd)
 // 	fprintf(stderr, "framerate: %i/%i \n",params.parm.capture.timeperframe.numerator ,params.parm.capture.timeperframe.denominator  );
 // 	*fps_numer =params.parm.capture.timeperframe.numerator;
 // 	*fps_denom = params.parm.capture.timeperframe.denominator;
-// 	init_mmap(fd);	
+// 	init_mmap(fd);
 // }
 
 int close_device(int fd)
@@ -415,18 +416,18 @@ int open_device(char *dev_name_)
 //         frmsize.pixel_format = fmt.pixelformat;
 //         char c[4];
 //         c[0] =  (char) (fmt.pixelformat>>0);
-//         c[1] =  (char) (fmt.pixelformat>>8);        
+//         c[1] =  (char) (fmt.pixelformat>>8);
 //         c[2] =  (char) (fmt.pixelformat>>16);
 //         c[3] =  (char) (fmt.pixelformat>>24);
 //         printf("Pixelformat %s \n", c);
 //         frmsize.index = 0;
 //         while (xioctl(fd, VIDIOC_ENUM_FRAMESIZES, &frmsize) >= 0) {
 //             if (frmsize.type == V4L2_FRMSIZE_TYPE_DISCRETE) {
-//                 printf("%dx%d\n", 
+//                 printf("%dx%d\n",
 //                                   frmsize.discrete.width,
 //                                   frmsize.discrete.height);
 //             } else if (frmsize.type == V4L2_FRMSIZE_TYPE_STEPWISE) {
-//                 printf("%dx%d\n", 
+//                 printf("%dx%d\n",
 //                                   frmsize.stepwise.max_width,
 //                                   frmsize.stepwise.max_height);
 //             }
@@ -459,11 +460,11 @@ int open_device(char *dev_name_)
    //      frmsize.index = 0;
    //      while (ioctl(fd, VIDIOC_ENUM_FRAMESIZES, &frmsize) >= 0) {
    //          if (frmsize.type == V4L2_FRMSIZE_TYPE_DISCRETE) {
-   //              printf("%dx%d\n", 
+   //              printf("%dx%d\n",
    //                                frmsize.discrete.width,
    //                                frmsize.discrete.height);
    //          } else if (frmsize.type == V4L2_FRMSIZE_TYPE_STEPWISE) {
-   //              printf("%dx%d\n", 
+   //              printf("%dx%d\n",
    //                                frmsize.stepwise.max_width,
    //                                frmsize.stepwise.max_height);
    //          }
