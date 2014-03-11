@@ -21,8 +21,28 @@ logger = logging.getLogger(__name__)
 
 class Filter_Fixations(Plugin):
     """docstring
-    using this plugin will filter the recent_pupil_positions by manhattan distance from previous frame
-    only recent_pupil_positions within distance tolerance will be shown
+    This plugin detects fixations by measuring dispersion and duration between recent_pupil_positions
+    this allows one to effectively filter out saccades
+
+    Methods of fixation detection are based on prior literature
+    
+    Saccade vs fixation assumptions are based on 
+        (Salvucci & Goldberg, ETRA, 2000) http://www.cs.drexel.edu/~salvucci/publications/Salvucci-ETRA00.pdf
+        (Evans et al, JEMR, 2012) http://www.jemr.org/online/5/2/6
+
+    Fixations notes/assumptions from literature
+        + Fixations rarely less than 100ms duration
+        + Fixations between 200-400ms in duration
+        + Fixations (as word implies) are when the eye is not moving (or within a tolerance of movement)     
+
+    Fixation thresholds:
+        + dispersion = how much movement is allowed within one fixation (e.g. > 8 pixels movement is no longer fixation)
+        + duration = how long must recent_pupil_positions remain within dispersion threshold before classified as fixation (e.g. at least 100ms)
+
+    Smooth Pursuit (additional plugin to be run prior to fixations): 
+        + VOR - when moving the head while fixating on an object we need to compensate for scene/world movement (this as separate plugin?)
+        Reference literature (Kinsman et al. "Ego-motion compensation improves fixation detection in wearable eye tracking," ACM 2011)
+
     """
     def __init__(self, g_pool=None,distance=25.0,gui_settings={'pos':(10,470),'size':(300,100),'iconified':False}):
         super(Filter_Fixations, self).__init__()
