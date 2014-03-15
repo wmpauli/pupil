@@ -107,7 +107,7 @@ class Filter_Fixations(Plugin):
                                                             lambda x: self.manhattan_dist_denormalize(curr_gp, x, img_shape) < self.distance.value)
 
 
-            fixation_candidates = past_fixations + future_fixations
+            fixation_candidates = []
             saccades = past_saccades + future_saccades
 
             # if we detected a potential fixation, was it longer than 100 milliseconds?
@@ -122,8 +122,10 @@ class Filter_Fixations(Plugin):
                 future_t = future_fixations[-1]['timestamp']-now
 
             if future_t and past_t:
-                if future_t+past_t < 0.1:
+                if future_t+past_t < 0.09:
                     logger.debug("fixation candidate less than min duration - reported: %s" %(future_t+past_t))
+                else:
+                    fixation_candidates = past_fixations + future_fixations
 
             recent_pupil_positions[:] = fixation_candidates[:]
             recent_pupil_positions.sort(key=lambda x: x['timestamp']) #this may be redundant...
