@@ -108,7 +108,6 @@ class Filter_Fixations(Plugin):
             if past_gp:
                 past_gp.sort(key=lambda x: x['timestamp'])
                 past_t = now-past_gp[0]['timestamp']
-                print "past_t: ", past_t
 
             if future_gp:
                 future_gp.sort(key=lambda x: x['timestamp'])
@@ -116,10 +115,7 @@ class Filter_Fixations(Plugin):
 
             if future_t and past_t:
                 if future_t+past_t < 0.1:
-                    print "not a probable fixation..."
-                    print "fixation_time: ", future_t+past_t
-
-            # print "future_gp: ", future_gp
+                    logger.debug("fixation candidate less than min duration - reported: %s" %(future_t+past_t))
 
             recent_pupil_positions[:] = fixation_candidates[:]
             recent_pupil_positions.sort(key=lambda x: x['timestamp']) #this may be redundant...
