@@ -12,7 +12,7 @@ import cv2
 from plugin import Plugin
 import numpy as np
 import atb
-from ctypes import c_float
+from ctypes import c_float, c_bool
 from methods import denormalize,normalize
 from player_methods import transparent_circle
 import logging
@@ -55,7 +55,7 @@ class Filter_Fixations(Plugin):
             + check distance between gaze point vs past & future
             + check that time >= 0.1 second (approx. 3 frames)
     """
-    def __init__(self, g_pool=None,distance=8.0,max_duration=400.0,gui_settings={'pos':(10,470),'size':(300,100),'iconified':False}):
+    def __init__(self, g_pool=None,distance=8.0,show_saccades=False,gui_settings={'pos':(10,470),'size':(300,100),'iconified':False}):
         super(Filter_Fixations, self).__init__()
 
         self.g_pool = g_pool
@@ -64,7 +64,8 @@ class Filter_Fixations(Plugin):
 
         # user settings
         self.distance = c_float(float(distance))
-        self.max_duration = c_float(float(max_duration))
+        self.show_saccades = c_bool(bool(show_saccades))
+
         self.min_duration = 0.10
         self.gui_settings = gui_settings
 
@@ -91,6 +92,7 @@ class Filter_Fixations(Plugin):
         img_shape = img.shape[:-1][::-1] # width,height
 
         if recent_pupil_positions:
+            # sample a the middle of recent_pupil_positions, look into past and future to determine fixations and saccades
             past_gp = recent_pupil_positions[:len(recent_pupil_positions)/2]
             curr_gp = recent_pupil_positions[len(recent_pupil_positions)/2]
             future_gp = recent_pupil_positions[(len(recent_pupil_positions)/2)+1:]
@@ -99,19 +101,25 @@ class Filter_Fixations(Plugin):
             past_cutoff = now-0.2 # 200 ms window/2 = max saccade duration
             future_cutoff = now+0.2 # 
 
-            past_gp = [g for g in past_gp if g['timestamp']>=past_cutoff and self.manhattan_dist_denormalize(curr_gp, g, img_shape) < self.distance.value]
-            future_gp = [g for g in future_gp if g['timestamp']<=future_cutoff and self.manhattan_dist_denormalize(curr_gp, g, img_shape) < self.distance.value] 
-            fixation_candidates = past_gp + future_gp
+            past_fixations, past_saccades = self.partition([g for g in past_gp if g['timestamp']>=past_cutoff], 
+                                                            lambda x: self.manhattan_dist_denormalize(curr_gp, x, img_shape) < self.distance.value)
+            future_fixations, future_saccades = self.partition([g for g in future_gp if g['timestamp']<=future_cutoff], 
+                                                            lambda x: self.manhattan_dist_denormalize(curr_gp, x, img_shape) < self.distance.value)
+
+
+            fixation_candidates = past_fixations + future_fixations
+            saccades = past_saccades + future_saccades
 
             # if we detected a potential fixation, was it longer than 100 milliseconds?
+            # this needs cleanup and needs to remove fixation from list if under threshold
             future_t, past_t = False, False
-            if past_gp:
-                past_gp.sort(key=lambda x: x['timestamp'])
-                past_t = now-past_gp[0]['timestamp']
+            if past_fixations:
+                past_fixations.sort(key=lambda x: x['timestamp'])
+                past_t = now-past_fixations[0]['timestamp']
 
-            if future_gp:
-                future_gp.sort(key=lambda x: x['timestamp'])
-                future_t = future_gp[-1]['timestamp']-now
+            if future_fixations:
+                future_fixations.sort(key=lambda x: x['timestamp'])
+                future_t = future_fixations[-1]['timestamp']-now
 
             if future_t and past_t:
                 if future_t+past_t < 0.1:
@@ -120,6 +128,11 @@ class Filter_Fixations(Plugin):
             recent_pupil_positions[:] = fixation_candidates[:]
             recent_pupil_positions.sort(key=lambda x: x['timestamp']) #this may be redundant...
 
+            # draw saccades
+            if self.show_saccades.value:
+                pts = [denormalize(pt['norm_gaze'],frame.img.shape[:-1][::-1],flip_y=True) for pt in saccades if pt['norm_gaze'] is not None]
+                for pt in pts:
+                    transparent_circle(frame.img, pt, radius=20, color=(255,150,0,100), thickness=2)
 
 
     def init_gui(self,pos=None):
@@ -132,6 +145,7 @@ class Filter_Fixations(Plugin):
 
         self._bar.iconified = self.gui_settings['iconified']
         self._bar.add_var('distance in pixels',self.distance,min=0,step=0.1)
+        self._bar.add_var('show saccades',self.show_saccades)
         self._bar.add_button('remove',self.unset_alive)
 
 
@@ -149,7 +163,7 @@ class Filter_Fixations(Plugin):
 
 
     def get_init_dict(self):
-        d = {'distance':self.distance.value, 'max_duration':self.max_duration.value}
+        d = {'distance':self.distance.value, 'show_saccades':self.show_saccades.value}
         if hasattr(self,'_bar'):
             gui_settings = {'pos':self._bar.position,'size':self._bar.size,'iconified':self._bar.iconified}
             d['gui_settings'] = gui_settings
@@ -174,4 +188,8 @@ class Filter_Fixations(Plugin):
         y_dist = abs(gp1_norm[1] - gp2_norm[1])
         man = x_dist + y_dist
         return man
+
+    def partition(self, l, p):
+        # use a predicate to return a filtered list of true/false
+        return reduce(lambda x, y: x[not p(y)].append(y) or x, l, ([], []))
 
