@@ -62,7 +62,7 @@ fh = logging.FileHandler(os.path.join(user_dir,'player.log'),mode='w')
 fh.setLevel(logging.DEBUG)
 # create console handler with a higher log level
 ch = logging.StreamHandler()
-ch.setLevel(logging.WARNING)
+ch.setLevel(logging.DEBUG)
 # create formatter and add it to the handlers
 formatter = logging.Formatter('Player: %(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
@@ -97,9 +97,9 @@ from export_launcher import Export_Launcher
 from scan_path import Scan_Path
 from marker_detector import Marker_Detector
 from pupil_server import Pupil_Server
-from filter_fixations import Filter_Fixations
+from classify_fixations import Classify_Fixations
 
-plugin_by_index =  (Vis_Circle,Vis_Cross, Vis_Polyline, Vis_Light_Points,Scan_Path,Filter_Fixations,Marker_Detector,Pupil_Server)
+plugin_by_index =  (Vis_Circle,Vis_Cross, Vis_Polyline, Vis_Light_Points,Scan_Path,Classify_Fixations,Marker_Detector,Pupil_Server)
 name_by_index = [p.__name__ for p in plugin_by_index]
 index_by_name = dict(zip(name_by_index,range(len(name_by_index))))
 plugin_by_name = dict(zip(name_by_index,plugin_by_index))
