@@ -22,38 +22,52 @@ logger = logging.getLogger(__name__)
 
 class Filter_Fixations(Plugin):
     """docstring
-    This plugin detects fixations by measuring dispersion and duration between recent_pupil_positions
-    this allows one to effectively filter out saccades
+    This plugin classifies fixations and saccades by measuring dispersion and duration of gaze points 
 
     Methods of fixation detection are based on prior literature
-    
     Saccade vs fixation assumptions are based on 
         (Salvucci & Goldberg, ETRA, 2000) http://www.cs.drexel.edu/~salvucci/publications/Salvucci-ETRA00.pdf
         (Evans et al, JEMR, 2012) http://www.jemr.org/online/5/2/6
 
-    Fixations notes/assumptions from literature
+    Smooth Pursuit/Ego-motion accounted for by optical flow in Scan Path plugin: 
+        Reference literature (Kinsman et al. "Ego-motion compensation improves fixation detection in wearable eye tracking," ACM 2011)
+    
+    Fixations prior knowledge from literature review
         + Fixations rarely less than 100ms duration
         + Fixations between 200-400ms in duration
-        + Fixations (as word implies) are when the eye is not moving (or within a tolerance of movement)     
-
-    Fixation thresholds:
         + dispersion = how much movement is allowed within one fixation (e.g. > 8 pixels movement is no longer fixation)
         + duration = how long must recent_pupil_positions remain within dispersion threshold before classified as fixation (e.g. at least 100ms)
 
-    Smooth Pursuit/Ego-motion (additional plugin to be run prior to fixations): 
-        + VOR - when moving the head while fixating on an object we need to compensate for scene/world movement
-        + We compensate by using optical flow - sticking gaze points onto pixels in the scene in the Scan Path 
-        Reference literature (Kinsman et al. "Ego-motion compensation improves fixation detection in wearable eye tracking," ACM 2011)
+    Overview Diagram
+        + Scan path supplies a window into the past set by user (must be >= 0.4s)
+        + The sample/anchor point is taken approx 0.2s away from most current timestamp
+        + Cuttoff is 0.4 seconds in the past = theoretical maximum duration of fixation 
 
-    Overview:
-        + Get recent_pupil_positions from Scan Path plugin
-            + recent_pupil_positions gaze points "stuck" to the pixel to compensate for Ego-motion
-            + timeframe of Scan Path is the temporal window within which we calculate/determine fixations
-        + Use Sliding Filter to classify gaze point as fixation or saccade
-            + get gaze point at the middle of recent_pupil_positions
-            + create sub time slice of 400ms (200ms past, 200ms future)
-            + check distance between gaze point vs past & future
-            + check that time >= 0.1 second (approx. 3 frames)
+        past[         scan path history         ]now
+            [- - - - - - - - - <-------s------->] 
+                                       s-- t -->
+                         cutoff<-- t --s
+                               <  max fixation >
+
+        + Preliminary classification candidates/support if within distance threshold of sample using manhattan distance
+                  dx  
+                +---pt
+                |  /
+             dy | /
+                |/
+                s
+
+        + Final classification of sample as fixation if supporting candidates & sample within min_duration threshold
+            + Check for min_duration 0.1s in sliding window around sample (including sample)
+
+                |0.1s|
+            <---|--s-|---->
+            <-----|s---|-->
+            <--|---s|-----> 
+
+            - if fixations are >= 0.1s and inclusive of sample and within distance threshold, then sample classified as fixations
+
+            <--|**s**|---> == fixation
     """
     def __init__(self, g_pool=None,distance=8.0,show_saccades=False,gui_settings={'pos':(10,470),'size':(300,100),'iconified':False}):
         super(Filter_Fixations, self).__init__()
@@ -65,14 +79,29 @@ class Filter_Fixations(Plugin):
         # user settings
         self.distance = c_float(float(distance))
         self.show_saccades = c_bool(bool(show_saccades))
-
         self.min_duration = 0.10
+        self.max_duration = 0.40
         self.gui_settings = gui_settings
 
         self.sp_active = True
 
-    def update(self,frame,recent_pupil_positions,events):
+        # algorithm working data
+        self.d = {}
+        self.sample_pt = None
+        self.past_pt = None
+        self.present_pt = None
+        self.candidates = []
+        '''
+        d[p["timestamp"]] = "fixation"
+        p["timestamp"]
+        p["type"] = d[p"timestamp"]
+        '''
 
+    def update(self,frame,recent_pupil_positions,events):
+        img = frame.img
+        img_shape = img.shape[:-1][::-1] # width,height
+
+        # initialize Scan Path so we can use its history and optical flow
         if any(isinstance(p,Scan_Path) for p in self.g_pool.plugins):
             if self.sp_active:
                 pass
@@ -83,58 +112,58 @@ class Filter_Fixations(Plugin):
             if self.sp_active:
                 self.set_bar_ok(False)
                 self.sp_active = False
-
             else:
                 pass
 
+        try:
+            self.present_pt = recent_pupil_positions[-1]
+            cutoff = self.present_pt['timestamp'] - self.max_duration
+            self.candidates = [g for g in recent_pupil_positions if g['timestamp']>cutoff]
+            self.past_pt = self.candidates[0]
+            dt = self.present_pt['timestamp']-self.past_pt['timestamp']
+            
+            if dt < 0.1:
+                # no chance of there being a fixation here anyways
+                self.candidates = []
+                
+                logger.debug("not enough samples for classification - dt: %03f" %(dt))
+            else:
+                t = self.present_pt['timestamp']- self.max_duration*0.5
+                self.sample_pt = min(self.candidates, key=lambda k: abs(k['timestamp']-t))
+                # remove sample point from candidate list
+                # self.candidates[:] = [p for p in self.candidates if p['timestamp'] != self.sample_pt['timestamp']]
+                
+                logger.debug("cutoff: %3f\tcandidates: %s" %(cutoff, len(self.candidates)))
+                logger.debug("past_pt: %03f\t sample_pt %03f\t present_pt: %03f" %(self.past_pt['timestamp'], self.sample_pt['timestamp'], self.present_pt['timestamp']))
+        except:
+            # no recent_pupil_positions
+            pass
 
-        img = frame.img
-        img_shape = img.shape[:-1][::-1] # width,height
-
-        if recent_pupil_positions:
-            # sample a the middle of recent_pupil_positions, look into past and future to determine fixations and saccades
-            past_gp = recent_pupil_positions[:len(recent_pupil_positions)/2]
-            curr_gp = recent_pupil_positions[len(recent_pupil_positions)/2]
-            future_gp = recent_pupil_positions[(len(recent_pupil_positions)/2)+1:]
-
-            now = curr_gp['timestamp']
-            past_cutoff = now-0.2 # 200 ms window/2 = max saccade duration
-            future_cutoff = now+0.2 # 
-
-            past_fixations, past_saccades = self.partition([g for g in past_gp if g['timestamp']>=past_cutoff], 
-                                                            lambda x: self.manhattan_dist_denormalize(curr_gp, x, img_shape) < self.distance.value)
-            future_fixations, future_saccades = self.partition([g for g in future_gp if g['timestamp']<=future_cutoff], 
-                                                            lambda x: self.manhattan_dist_denormalize(curr_gp, x, img_shape) < self.distance.value)
-
-
-            fixation_candidates = []
-            saccades = past_saccades + future_saccades
-
-            # if we detected a potential fixation, was it longer than 100 milliseconds?
-            # this needs cleanup and needs to remove fixation from list if under threshold
-            future_t, past_t = False, False
-            if past_fixations:
-                past_fixations.sort(key=lambda x: x['timestamp'])
-                past_t = now-past_fixations[0]['timestamp']
-
-            if future_fixations:
-                future_fixations.sort(key=lambda x: x['timestamp'])
-                future_t = future_fixations[-1]['timestamp']-now
-
-            if future_t and past_t:
-                if future_t+past_t < 0.09:
-                    logger.debug("fixation candidate less than min duration - reported: %s" %(future_t+past_t))
+        # classify sample point fixation or saccade
+        if self.candidates and self.sample_pt:
+            for p in self.candidates:
+                if self.manhattan_dist_denormalize(self.sample_pt, p, img_shape) < self.distance.value:
+                    p['support'] = True
                 else:
-                    fixation_candidates = past_fixations + future_fixations
+                    p['support'] = False
+                logger.debug("%s @ %03f" %(p['support'],p['timestamp']))
 
-            recent_pupil_positions[:] = fixation_candidates[:]
-            recent_pupil_positions.sort(key=lambda x: x['timestamp']) #this may be redundant...
+            
+            min_fix = min([p['timestamp'] for p in self.candidates if p['support']])
+            max_fix = max([p['timestamp'] for p in self.candidates if p['support']])
+            dt = max_fix-min_fix
+            logger.debug("min_fix: %03f\t max_fix: %03f\tdt: %s" %(min_fix,max_fix,dt))
+            
+            if dt > self.min_duration and min_fix <= self.sample_pt['timestamp'] <= max_fix:
+                self.d[self.sample_pt['timestamp']] = "fixation"
 
-            # draw saccades
-            if self.show_saccades.value:
-                pts = [denormalize(pt['norm_gaze'],frame.img.shape[:-1][::-1],flip_y=True) for pt in saccades if pt['norm_gaze'] is not None]
-                for pt in pts:
-                    transparent_circle(frame.img, pt, radius=20, color=(255,150,0,100), thickness=2)
+            # draw fixations
+            # inject knowledge of now and knowledge of 'past'
+            # p["type"] = d[p"timestamp"]
+            # if self.show_saccades.value:
+            #     pts = [denormalize(pt['norm_gaze'],frame.img.shape[:-1][::-1],flip_y=True) for pt in saccades if pt['norm_gaze'] is not None]
+            #     for pt in pts:
+            #         transparent_circle(frame.img, pt, radius=20, color=(255,150,0,100), thickness=2)
 
 
     def init_gui(self,pos=None):
@@ -190,8 +219,4 @@ class Filter_Fixations(Plugin):
         y_dist = abs(gp1_norm[1] - gp2_norm[1])
         man = x_dist + y_dist
         return man
-
-    def partition(self, l, p):
-        # use a predicate to return a filtered list of true/false
-        return reduce(lambda x, y: x[not p(y)].append(y) or x, l, ([], []))
 
