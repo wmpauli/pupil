@@ -165,15 +165,18 @@ class Classify_Fixations(Plugin):
         recent_pupil_positions.sort(key=lambda x: x['timestamp']) #this may be redundant...
         # logger.debug("dict: %s" %(self.d))
 
-    
-        # draw fixations
-        # inject knowledge of now and knowledge of 'past'
-        # p["type"] = d[p"timestamp"]
-        # if self.show_saccades.value:
-        #     pts = [denormalize(pt['norm_gaze'],frame.img.shape[:-1][::-1],flip_y=True) for pt in saccades if pt['norm_gaze'] is not None]
-        #     for pt in pts:
-        #         transparent_circle(frame.img, pt, radius=20, color=(255,150,0,100), thickness=2)
+        # current hack for drawing fixations and saccades without vis_circle
+        pts = [p for p in recent_pupil_positions if p.has_key('type') and p['type'] is 'fixation']
+        pts = [denormalize(pt['norm_gaze'],frame.img.shape[:-1][::-1],flip_y=True) for pt in pts if pt['norm_gaze'] is not None]
+        for pt in pts:
+            transparent_circle(frame.img, pt, radius=20, color=(0,40,255,200), thickness=2)
 
+        if self.show_saccades.value:
+            pts = [p for p in recent_pupil_positions if p.has_key('type') and p['type'] is 'saccade']
+            pts = [denormalize(pt['norm_gaze'],frame.img.shape[:-1][::-1],flip_y=True) for pt in pts if pt['norm_gaze'] is not None]
+            for pt in pts:
+                transparent_circle(frame.img, pt, radius=5, color=(255,150,0,200), thickness=-1)
+                
 
     def init_gui(self,pos=None):
         import atb
