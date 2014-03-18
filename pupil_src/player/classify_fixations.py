@@ -41,7 +41,7 @@ class Classify_Fixations(Plugin):
     Overview Diagram
         + Scan path supplies a window into the past set by user (must be >= 0.4s)
         + The sample/anchor point is taken approx 0.2s away from most current timestamp
-        + Cuttoff is 0.4 seconds in the past = theoretical maximum duration of fixation 
+        + Cutoff is 0.4 seconds in the past = theoretical maximum duration of fixation 
 
         past[         scan path history         ]now
             [- - - - - - - - - <-------s------->] 
@@ -65,9 +65,11 @@ class Classify_Fixations(Plugin):
             <-----|s---|-->
             <--|---s|-----> 
 
-            - if fixations are >= 0.1s and inclusive of sample and within distance threshold, then sample classified as fixations
+            + if fixations are >= 0.1s and inclusive of sample and within distance threshold, then sample classified as fixations
 
             <--|**s**|---> == fixation
+
+        + Last step - if a point has already been classified as fixation, then can not contribute to another fixation
     """
     def __init__(self, g_pool=None,distance=8.0,show_saccades=False,gui_settings={'pos':(10,470),'size':(300,100),'iconified':False}):
         super(Classify_Fixations, self).__init__()
@@ -123,15 +125,10 @@ class Classify_Fixations(Plugin):
             dt = self.present_pt['timestamp']-self.past_pt['timestamp']
             
             if dt < 0.1:
-                # no chance of there being a fixation here anyways
                 self.candidates = []
-                
-                # logger.debug("not enough samples for classification - dt: %03f" %(dt))
             else:
                 t = self.present_pt['timestamp']- self.max_duration*0.5
                 self.sample_pt = min(self.candidates, key=lambda k: abs(k['timestamp']-t))                
-                # logger.debug("cutoff: %3f\tcandidates: %s" %(cutoff, len(self.candidates)))
-                # logger.debug("past_pt: %03f\t sample_pt %03f\t present_pt: %03f" %(self.past_pt['timestamp'], self.sample_pt['timestamp'], self.present_pt['timestamp']))
         except:
             # no recent_pupil_positions
             pass
