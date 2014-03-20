@@ -14,7 +14,7 @@ import numpy as np
 import atb
 from glfw import *
 from gl_utils import adjust_gl_view, draw_gl_texture, clear_gl_screen, draw_gl_point_norm, draw_gl_point, draw_gl_polyline, draw_gl_polyline_norm, basic_gl_setup
-from ctypes import c_float, c_bool
+from ctypes import c_float, c_bool, c_int
 from methods import denormalize,normalize
 from player_methods import transparent_circle
 import logging
@@ -54,7 +54,7 @@ class Classify_Fixations(Plugin):
 
 
     """
-    def __init__(self, g_pool=None,distance=8.0,show_saccades=False,gui_settings={'pos':(10,470),'size':(300,100),'iconified':False}):
+    def __init__(self, g_pool=None,distance=8.0,samp_width=300,show_saccades=False,gui_settings={'pos':(10,470),'size':(300,100),'iconified':False}):
         super(Classify_Fixations, self).__init__()
 
         self.g_pool = g_pool
@@ -63,6 +63,7 @@ class Classify_Fixations(Plugin):
 
         # user settings
         self.distance = c_float(float(distance))
+        self.samp_width = c_int(int(samp_width))
         self.show_saccades = c_bool(bool(show_saccades))
         self.min_duration = 0.10
         self.max_duration = 0.40
@@ -74,6 +75,9 @@ class Classify_Fixations(Plugin):
         self.raw_dispersion_history = {}
         self.vis_dispersion_history = {}
         self.timestamp_history = []
+        # degrees per pixel with c930e = 0.061282654954069871
+        # 16.3 pixels = 1 degree 
+        # 8 pixels = approx 0.5 degrees vis angle
 
         self.sample_pt = None
         self.past_pt = None
@@ -90,6 +94,7 @@ class Classify_Fixations(Plugin):
     def update(self,frame,recent_pupil_positions,events):
         img = frame.img
         img_shape = img.shape[:-1][::-1] # width,height
+        self.norm_distance = self.distance.value/img_shape[1]
 
         # init debug window
         if self.window_should_open:
@@ -125,8 +130,7 @@ class Classify_Fixations(Plugin):
 
         # visualizations in debug window
         if self._window:
-            samp_width = 300 # samples not equally spaced but 300 samples roughly equates to 10 seconds @30fps
-            pts = zip( list(np.arange(0.,1.,1.0/samp_width)), map(self.vis_dispersion_history.get, self.timestamp_history[-samp_width:-1]) )
+            pts = zip( list(np.arange(0.,1.,1.0/self.samp_width.value)), map(self.vis_dispersion_history.get, self.timestamp_history[-self.samp_width.value:-1]) )
             self.gl_display_in_window(pts)
 
         
@@ -160,7 +164,8 @@ class Classify_Fixations(Plugin):
             text='light', position=pos,refresh=.1, size=self.gui_settings['size'])
 
         self._bar.iconified = self.gui_settings['iconified']
-        self._bar.add_var('distance in pixels',self.distance,min=0,step=0.1)
+        self._bar.add_var('dispersion in pixels',self.distance,min=0,step=0.1)
+        self._bar.add_var('debug sample width',self.samp_width,min=10,step=1)
         self._bar.add_var('show saccades',self.show_saccades)
         self._bar.add_button("open debug window", self.toggle_window,help="Visualization of gaze velocity/time.")
         self._bar.add_button('remove',self.unset_alive)
@@ -227,7 +232,9 @@ class Classify_Fixations(Plugin):
         clear_gl_screen()
         # gl stuff that will show on your plugin window goes here
         # draw_gl_texture(img,interpolation=False)
-        draw_gl_polyline_norm(([0.0,0.5],[1.0,0.5]),(.0,.0,.0,0.5),type="Strip")
+        offset = 0.5
+        draw_gl_polyline_norm(([0.0,offset],[1.0,offset]),(.0,.0,.0,0.5),type="Strip")
+        draw_gl_polyline_norm(([0.0,self.norm_distance+offset],[1.0,self.norm_distance+offset]),(1.0,0.4,.0,0.5),type="Strip")
 
         draw_gl_polyline_norm(pts,(0.,1.,0,1.),type="Strip")
         glfwSwapBuffers(self._window)
