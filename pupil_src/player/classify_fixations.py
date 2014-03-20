@@ -12,6 +12,8 @@ import cv2
 from plugin import Plugin
 import numpy as np
 import atb
+from glfw import *
+from gl_utils import adjust_gl_view, draw_gl_texture, clear_gl_screen, draw_gl_point_norm, draw_gl_point, draw_gl_polyline, draw_gl_polyline_norm, basic_gl_setup
 from ctypes import c_float, c_bool
 from methods import denormalize,normalize
 from player_methods import transparent_circle
@@ -25,51 +27,32 @@ class Classify_Fixations(Plugin):
     This plugin classifies fixations and saccades by measuring dispersion and duration of gaze points 
 
     Methods of fixation detection are based on prior literature
-    Saccade vs fixation assumptions are based on 
         (Salvucci & Goldberg, ETRA, 2000) http://www.cs.drexel.edu/~salvucci/publications/Salvucci-ETRA00.pdf
+        (Munn et al., APGV, 2008) http://www.cis.rit.edu/vpl/3DPOR/website_files/Munn_Stefano_Pelz_APGV08.pdf
         (Evans et al, JEMR, 2012) http://www.jemr.org/online/5/2/6
 
     Smooth Pursuit/Ego-motion accounted for by optical flow in Scan Path plugin: 
         Reference literature (Kinsman et al. "Ego-motion compensation improves fixation detection in wearable eye tracking," ACM 2011)
     
-    Fixations prior knowledge from literature review
-        + Fixations rarely less than 100ms duration
-        + Fixations between 200-400ms in duration
-        + dispersion = how much movement is allowed within one fixation (e.g. > 8 pixels movement is no longer fixation)
-        + duration = how long must recent_pupil_positions remain within dispersion threshold before classified as fixation (e.g. at least 100ms)
+    Fixations general knowledge from literature review
+        + Goldberg et al. - fixations rarely < 100ms and range between 200ms and 400ms in duration (Irwin, 1992 - fixations dependent on task between 150ms - 600ms)
+        + Very short fixations are considered not meaningful for studying behavior - eye+brain require time for info to be registered (see Munn et al. APGV, 2008)
+        + Fixations are rarely longer than 800ms in duration
+            + Smooth Pursuit is exception and different motif
+            + If we do not set a maximum duration, we will also detect smooth pursuit (which is acceptable since we compensate for VOR)
+    Terms
+        + dispersion (spatial) = how much spatial movement is allowed within one fixation (in visual angular degrees or pixels)
+        + duration (temporal) = what is the minimum time required for gaze data to be within dispersion threshold?
+        + cohesion (spatial+temporal) = is the cluster of 
 
     Overview Diagram
-        + Scan path supplies a window into the past set by user (must be >= 0.4s)
-        + The sample/anchor point is taken approx 0.2s away from most current timestamp
-        + Cutoff is 0.4 seconds in the past = theoretical maximum duration of fixation 
+        + Scan path supplies a window into the past set by user and supplies 'recent_pupil_positions' list (variable duration set by user)
+        + The anchor point 'p' is located at the temporal center of recent_pupil_positions
 
-        past[         scan path history         ]now
-            [- - - - - - - - - <-------s------->] 
-                                       s-- t -->
-                         cutoff<-- t --s
-                               <  max fixation >
+        past[       recent_pupil_positions      ]current
+            [-----------------p-----------------] 
 
-        + Preliminary classification candidates/support if within distance threshold of sample using manhattan distance
-                  dx  
-                +---pt
-                |  /
-             dy | /
-                |/
-                s
 
-        + Final classification of sample as fixation if supporting candidates & sample within min_duration threshold
-            + Check for min_duration 0.1s in sliding window around sample (including sample)
-
-                |0.1s|
-            <---|--s-|---->
-            <-----|s---|-->
-            <--|---s|-----> 
-
-            + if fixations are >= 0.1s and inclusive of sample and within distance threshold, then sample classified as fixations
-
-            <--|**s**|---> == fixation
-
-        + Last step - if a point has already been classified as fixation, then can not contribute to another fixation
     """
     def __init__(self, g_pool=None,distance=8.0,show_saccades=False,gui_settings={'pos':(10,470),'size':(300,100),'iconified':False}):
         super(Classify_Fixations, self).__init__()
@@ -88,20 +71,34 @@ class Classify_Fixations(Plugin):
         self.sp_active = True
 
         # algorithm working data
-        self.d = {}
+        self.raw_dispersion_history = {}
+        self.vis_dispersion_history = {}
+        self.timestamp_history = []
+
         self.sample_pt = None
         self.past_pt = None
         self.present_pt = None
         self.candidates = []
-        '''
-        d[p["timestamp"]] = "fixation"
-        p["timestamp"]
-        p["type"] = d[p"timestamp"]
-        '''
+
+
+        #debug window
+        self.suggested_size = 640,480
+        self._window = None
+        self.window_should_open = False
+        self.window_should_close = False
 
     def update(self,frame,recent_pupil_positions,events):
         img = frame.img
         img_shape = img.shape[:-1][::-1] # width,height
+
+        # init debug window
+        if self.window_should_open:
+            self.open_window((frame.img.shape[1],frame.img.shape[0]))
+        if self.window_should_close:
+            self.close_window()
+
+        if self._window:
+            debug_img = np.zeros(frame.img.shape,frame.img.dtype)
 
         # initialize Scan Path so we can use its history and optical flow
         if any(isinstance(p,Scan_Path) for p in self.g_pool.plugins):
@@ -116,63 +113,42 @@ class Classify_Fixations(Plugin):
                 self.sp_active = False
             else:
                 pass
-
-        try:
-            self.present_pt = recent_pupil_positions[-1]
-            cutoff = self.present_pt['timestamp'] - self.max_duration
-            self.candidates[:] = [g for g in recent_pupil_positions if g['timestamp']>cutoff]
-            self.past_pt = self.candidates[0]
-            dt = self.present_pt['timestamp']-self.past_pt['timestamp']
+        
+        # find distance between each gaze point pairwise
+        for gp1, gp2 in zip(recent_pupil_positions[:-1], recent_pupil_positions[1:]):
+            dispersion = self.manhattan_dist(gp1['norm_gaze'] ,gp2['norm_gaze'])
             
-            if dt < 0.1:
-                self.candidates = []
-            else:
-                t = self.present_pt['timestamp']- self.max_duration*0.5
-                self.sample_pt = min(self.candidates, key=lambda k: abs(k['timestamp']-t))                
-        except:
-            # no recent_pupil_positions
-            pass
+            if gp1['timestamp'] not in self.timestamp_history:
+                self.raw_dispersion_history[gp1['timestamp']] = dispersion
+                self.vis_dispersion_history[gp1['timestamp']] = dispersion + 0.5
+                self.timestamp_history.append(gp1['timestamp']) 
 
-        # classify sample point fixation or saccade
-        if self.candidates and self.sample_pt:
-            mask = {}
-            for p in self.candidates:
-                if self.manhattan_dist_denormalize(self.sample_pt, p, img_shape) < self.distance.value:
-                    mask[p['timestamp']] = True
-                else:
-                    mask[p['timestamp']] = False
+        # visualizations in debug window
+        if self._window:
+            samp_width = 300 # samples not equally spaced but 300 samples roughly equates to 10 seconds @30fps
+            pts = zip( list(np.arange(0.,1.,1.0/samp_width)), map(self.vis_dispersion_history.get, self.timestamp_history[-samp_width:-1]) )
+            self.gl_display_in_window(pts)
 
-            min_fix = min([p['timestamp'] for p in self.candidates if mask[p['timestamp']]])
-            max_fix = max([p['timestamp'] for p in self.candidates if mask[p['timestamp']]])
-            dt = max_fix-min_fix
-            
-            if dt > self.min_duration and min_fix <= self.sample_pt['timestamp'] <= max_fix:
-                self.d[self.sample_pt['timestamp']] = "fixation"
-            else:
-                self.d[self.sample_pt['timestamp']] = "saccade"
-        else:
-            # unclassified point
-            pass
+        
 
-        for p in recent_pupil_positions:
-            for key,value in self.d.iteritems():
-                if p['timestamp'] == key:
-                    p['type'] = value
+        # for p in recent_pupil_positions:
+        #     p['dispersion'] = self.plugin_history.get(p['timestamp'],)
 
-        recent_pupil_positions.sort(key=lambda x: x['timestamp']) #this may be redundant...
+        recent_pupil_positions.sort(key=lambda k: k['timestamp']) #this may be redundant...
         # logger.debug("dict: %s" %(self.d))
 
-        # current hack for drawing fixations and saccades without vis_circle
-        pts = [p for p in recent_pupil_positions if p.has_key('type') and p['type'] is 'fixation']
-        pts = [denormalize(pt['norm_gaze'],frame.img.shape[:-1][::-1],flip_y=True) for pt in pts if pt['norm_gaze'] is not None]
-        for pt in pts:
-            transparent_circle(frame.img, pt, radius=20, color=(0,40,255,200), thickness=2)
 
-        if self.show_saccades.value:
-            pts = [p for p in recent_pupil_positions if p.has_key('type') and p['type'] is 'saccade']
-            pts = [denormalize(pt['norm_gaze'],frame.img.shape[:-1][::-1],flip_y=True) for pt in pts if pt['norm_gaze'] is not None]
-            for pt in pts:
-                transparent_circle(frame.img, pt, radius=5, color=(255,150,0,200), thickness=-1)
+        # # current hack for drawing fixations and saccades without vis_circle
+        # pts = [p for p in recent_pupil_positions if p.has_key('type') and p['type'] is 'fixation']
+        # pts = [denormalize(pt['norm_gaze'],frame.img.shape[:-1][::-1],flip_y=True) for pt in pts if pt['norm_gaze'] is not None]
+        # for pt in pts:
+        #     transparent_circle(frame.img, pt, radius=20, color=(0,40,255,200), thickness=2)
+
+        # if self.show_saccades.value:
+        #     pts = [p for p in recent_pupil_positions if p.has_key('type') and p['type'] is 'saccade']
+        #     pts = [denormalize(pt['norm_gaze'],frame.img.shape[:-1][::-1],flip_y=True) for pt in pts if pt['norm_gaze'] is not None]
+        #     for pt in pts:
+        #         transparent_circle(frame.img, pt, radius=5, color=(255,150,0,200), thickness=-1)
                 
 
     def init_gui(self,pos=None):
@@ -186,9 +162,76 @@ class Classify_Fixations(Plugin):
         self._bar.iconified = self.gui_settings['iconified']
         self._bar.add_var('distance in pixels',self.distance,min=0,step=0.1)
         self._bar.add_var('show saccades',self.show_saccades)
+        self._bar.add_button("open debug window", self.toggle_window,help="Visualization of gaze velocity/time.")
         self._bar.add_button('remove',self.unset_alive)
+   
+    def toggle_window(self):
+        if self._window:
+            self.window_should_close = True
+        else:
+            self.window_should_open = True
 
 
+    def open_window(self,size):
+        if not self._window:
+            if 0: #we are not fullscreening
+                monitor = self.monitor_handles[self.monitor_idx.value]
+                mode = glfwGetVideoMode(monitor)
+                height,width= mode[0],mode[1]
+            else:
+                monitor = None
+                height,width= size
+
+            active_window = glfwGetCurrentContext()
+            self._window = glfwCreateWindow(height, width, "Plugin Window", monitor=monitor, share=None)
+            if not 0:
+                glfwSetWindowPos(self._window,200,0)
+
+            self.on_resize(self._window,height,width)
+
+            #Register callbacks
+            glfwSetWindowSizeCallback(self._window,self.on_resize)
+            # glfwSetKeyCallback(self._window,self.on_key)
+            glfwSetWindowCloseCallback(self._window,self.on_close)
+
+            # gl_state settings
+            glfwMakeContextCurrent(self._window)
+            basic_gl_setup()
+
+            # refresh speed settings
+            glfwSwapInterval(0)
+
+            glfwMakeContextCurrent(active_window)
+
+            self.window_should_open = False
+
+    # window calbacks
+    def on_resize(self,window,w, h):
+        active_window = glfwGetCurrentContext()
+        glfwMakeContextCurrent(window)
+        adjust_gl_view(w,h)
+        glfwMakeContextCurrent(active_window)
+
+    def on_close(self,window):
+        self.window_should_close = True
+
+    def close_window(self):
+        if self._window:
+            glfwDestroyWindow(self._window)
+            self._window = None
+            self.window_should_close = False
+
+    def gl_display_in_window(self,pts):
+        active_window = glfwGetCurrentContext()
+        glfwMakeContextCurrent(self._window)
+        clear_gl_screen()
+        # gl stuff that will show on your plugin window goes here
+        # draw_gl_texture(img,interpolation=False)
+        draw_gl_polyline_norm(([0.0,0.5],[1.0,0.5]),(.0,.0,.0,0.5),type="Strip")
+
+        draw_gl_polyline_norm(pts,(0.,1.,0,1.),type="Strip")
+        glfwSwapBuffers(self._window)
+        glfwMakeContextCurrent(active_window)
 
     def set_bar_ok(self,ok):
         if ok:
@@ -219,6 +262,8 @@ class Classify_Fixations(Plugin):
         This happends either voluntary or forced.
         if you have an atb bar or glfw window destroy it here.
         """
+        if self._window:
+            self.close_window()
         self._bar.destroy()
 
     def manhattan_dist_denormalize(self, gp1, gp2, img_shape):
@@ -226,6 +271,12 @@ class Classify_Fixations(Plugin):
         gp2_norm = denormalize(gp2['norm_gaze'], img_shape,flip_y=True)
         x_dist =  abs(gp1_norm[0] - gp2_norm[0])
         y_dist = abs(gp1_norm[1] - gp2_norm[1])
+        man = x_dist + y_dist
+        return man
+
+    def manhattan_dist(self, gp1, gp2):
+        x_dist =  abs(gp1[0] - gp2[0])
+        y_dist = abs(gp1[1] - gp2[1])
         man = x_dist + y_dist
         return man
 
