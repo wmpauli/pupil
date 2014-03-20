@@ -76,14 +76,14 @@ class Accuracy_Test(Plugin):
         self.pos = None
 
         #result calculation variables:
-        self.fow = c_float(90.) #taken from c930e specsheet, confirmed though mesurement within ~10deg.
+        self.fov = c_float(90.) #taken from c930e specsheet, confirmed though mesurement within ~10deg.
         self.res =  c_float(np.sqrt(1280**2 + 720**2))
         self.outlier_thresh = c_float(5.)
-        self.accuray = c_float(0)
+        self.accuracy = c_float(0)
         self.percision = c_float(0)
 
         try:
-            self.pt_cloud = np.load(os.path.join(self.g_pool.user_dir,'accuray_test_pt_cloud.npy'))
+            self.pt_cloud = np.load(os.path.join(self.g_pool.user_dir,'accuracy_test_pt_cloud.npy'))
             gaze,ref = self.pt_cloud[:,0:2],self.pt_cloud[:,2:4]
             error_lines = np.array([[g,r] for g,r in zip(gaze,ref)])
             self.error_lines = error_lines.reshape(-1,2)
@@ -119,10 +119,10 @@ class Accuracy_Test(Plugin):
         self._bar.add_var("fullscreen", self.fullscreen)
         self._bar.add_button("  start test  ", self.start, key='c')
 
-        self._bar.add_var('diagonal FOV',self.fow)
+        self._bar.add_var('diagonal FOV',self.fov)
         self._bar.add_var('diagonal resolution',self.res,readonly= True)
         self._bar.add_var('outlier threshold deg',self.outlier_thresh)
-        self._bar.add_var('angular accuray',self.accuray,readonly=True)
+        self._bar.add_var('angular accuracy',self.accuracy,readonly=True)
         self._bar.add_var('angular percision',self.percision,readonly=True)
         self._bar.add_button('calculate result',self.calc_result)
         self._bar.add_separator("Sep1")
@@ -207,7 +207,7 @@ class Accuracy_Test(Plugin):
             return
 
         pt_cloud = np.array(pt_cloud)
-        np.save(os.path.join(self.g_pool.user_dir,'accuray_test_pt_cloud.npy'),pt_cloud)
+        np.save(os.path.join(self.g_pool.user_dir,'accuracy_test_pt_cloud.npy'),pt_cloud)
         gaze,ref = pt_cloud[:,0:2],pt_cloud[:,2:4]
         error_lines = np.array([[g,r] for g,r in zip(gaze,ref)])
         self.error_lines = error_lines.reshape(-1,2)
@@ -229,7 +229,7 @@ class Accuracy_Test(Plugin):
         pt_cloud[:,0:3:2] *= res[0]
         pt_cloud[:,1:4:2] *= res[1]
 
-        field_of_view = self.fow.value
+        field_of_view = self.fov.value
         px_per_degree = self.res.value/field_of_view
 
         # Accuracy is calculated as the average angular
@@ -242,13 +242,13 @@ class Accuracy_Test(Plugin):
         error_lines = np.array([[g,r] for g,r in zip(gaze,ref)])
         error_lines = error_lines.reshape(-1,2)
         error_mag = sp.distance.cdist(gaze,ref).diagonal().copy()
-        accuray_pix = np.mean(error_mag)
-        logger.info("Gaze error mean in world camera pixel: %f"%accuray_pix)
+        accuracy_pix = np.mean(error_mag)
+        logger.info("Gaze error mean in world camera pixel: %f"%accuracy_pix)
         error_mag /= px_per_degree
         logger.info('Error in degrees: %s'%error_mag)
         logger.info('Outliers: %s'%np.where(error_mag>=self.outlier_thresh.value))
-        self.accuray.value = np.mean(error_mag[error_mag<self.outlier_thresh.value])
-        logger.info('Angular accuray: %s'%self.accuray.value)
+        self.accuracy.value = np.mean(error_mag[error_mag<self.outlier_thresh.value])
+        logger.info('Angular accuracy: %s'%self.accuracy.value)
 
 
         #lets calculate percision:  (RMS of distance of succesive samples.)
