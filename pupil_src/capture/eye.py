@@ -1,47 +1,62 @@
 '''
 (*)~----------------------------------------------------------------------------------
  Pupil - eye tracking platform
- Copyright (C) 2012-2013  Moritz Kassner & William Patera
+ Copyright (C) 2012-2014  Pupil Labs
 
  Distributed under the terms of the CC BY-NC-SA License.
  License details are in the file license.txt, distributed as part of this software.
 ----------------------------------------------------------------------------------~(*)
 '''
 
-if __name__ == '__main__':
-    # make shared modules available across pupil_src
-    from sys import path as syspath
-    from os import path as ospath
-    loc = ospath.abspath(__file__).rsplit('pupil_src', 1)
-    syspath.append(ospath.join(loc[0], 'pupil_src', 'shared_modules'))
-    del syspath, ospath
-
-
 import os
 from time import time, sleep
-import shelve
+from file_methods import Persistent_Dict
+import logging
 from ctypes import c_int,c_bool,c_float
 import numpy as np
 import atb
 from glfw import *
-from gl_utils import adjust_gl_view, draw_gl_texture, clear_gl_screen, draw_gl_point_norm, draw_gl_polyline
+from gl_utils import basic_gl_setup,adjust_gl_view, clear_gl_screen, draw_gl_point_norm,make_coord_system_pixel_based,make_coord_system_norm_based,create_named_texture,draw_named_texture,draw_gl_polyline
 from methods import *
-from c_methods import eye_filter
-from uvc_capture import autoCreateCapture
+from uvc_capture import autoCreateCapture, FileCaptureError, EndofVideoFileError, CameraCaptureError
 from calibrate import get_map_from_cloud
-from pupil_detectors import Canny_Detector
+from pupil_detectors import Canny_Detector,MSER_Detector,Blob_Detector
 
-def eye(g_pool,cap_src, cap_size,cap_special_id = 0, side='mono'):
+def eye(g_pool,cap_src,cap_size):
     """
     Creates a window, gl context.
     Grabs images from a capture.
     Streams Pupil coordinates into g_pool.pupil_queue
     """
 
+    # modify the root logger for this process
+    logger = logging.getLogger()
+    # remove inherited handlers
+    logger.handlers = []
+    # create file handler which logs even debug messages
+    fh = logging.FileHandler(os.path.join(g_pool.user_dir,'eye.log'),mode='w')
+    fh.setLevel(logging.DEBUG)
+    # create console handler with a higher log level
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.WARNING)
+    # create formatter and add it to the handlers
+    formatter = logging.Formatter('EYE Process: %(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    formatter = logging.Formatter('E Y E Process [%(levelname)s] %(name)s : %(message)s')
+    ch.setFormatter(formatter)
+    # add the handlers to the logger
+    logger.addHandler(fh)
+    logger.addHandler(ch)
+    # create logger for the context of this function
+    logger = logging.getLogger(__name__)
+
+
     # Callback functions
     def on_resize(window,w, h):
-        adjust_gl_view(w,h)
-        atb.TwWindowSize(w, h)
+        adjust_gl_view(w,h,window)
+        norm_size = normalize((w,h),glfwGetWindowSize(window))
+        fb_size = denormalize(norm_size,glfwGetFramebufferSize(window))
+        atb.TwWindowSize(*map(int,fb_size))
 
 
     def on_key(window, key, scancode, action, mods):
@@ -66,12 +81,13 @@ def eye(g_pool,cap_src, cap_size,cap_special_id = 0, side='mono'):
                 bar.draw_roi.value = 0
 
     def on_pos(window,x, y):
-        if atb.TwMouseMotion(int(x),int(y)):
+        norm_pos = normalize((x,y),glfwGetWindowSize(window))
+        fb_x,fb_y = denormalize(norm_pos,glfwGetFramebufferSize(window))
+        if atb.TwMouseMotion(int(fb_x),int(fb_y)):
             pass
+
         if bar.draw_roi.value == 1:
-            pos = x,y
-            pos = normalize(pos,glfwGetWindowSize(window))
-            pos = denormalize(pos,(frame.img.shape[1],frame.img.shape[0]) ) # pos in frame.img pixels
+            pos = denormalize(norm_pos,(frame.img.shape[1],frame.img.shape[0]) ) # pos in frame.img pixels
             u_r.setEnd(pos)
 
     def on_scroll(window,x,y):
@@ -80,7 +96,7 @@ def eye(g_pool,cap_src, cap_size,cap_special_id = 0, side='mono'):
 
     def on_close(window):
         g_pool.quit.value = True
-        print "WORLD Process closing from window"
+        logger.info('Process closing from window')
 
 
     # Helper functions called by the main atb bar
@@ -103,33 +119,32 @@ def eye(g_pool,cap_src, cap_size,cap_special_id = 0, side='mono'):
 
 
     # load session persistent settings
-    session_settings = shelve.open(os.path.join(g_pool.user_dir,'user_settings_%s_eye'%side),protocol=2)
+    session_settings = Persistent_Dict(os.path.join(g_pool.user_dir,'user_settings_eye') )
     def load(var_name,default):
         return session_settings.get(var_name,default)
     def save(var_name,var):
         session_settings[var_name] = var
 
     # Initialize capture
-    cap = autoCreateCapture(cap_src,cap_size,special_id = cap_special_id)
+    cap = autoCreateCapture(cap_src, cap_size,timebase=g_pool.timebase)
+
     if cap is None:
-        print "EYE: Error could not create Capture"
+        logger.error("Did not receive valid Capture")
         return
     # check if it works
     frame = cap.get_frame()
     if frame.img is None:
-        print "EYE: Error could not get image"
+        logger.error("Could not retrieve image from capture")
         cap.close()
         return
     height,width = frame.img.shape[:2]
 
-
     u_r = Roi(frame.img.shape)
     u_r.set(load('roi',default=None))
-    p_r = Roi(frame.img.shape)
 
     writer = None
 
-    pupil_detector = Canny_Detector()
+    pupil_detector = Canny_Detector(g_pool)
 
     atb.init()
     # Create main ATB Controls
@@ -147,7 +162,7 @@ def eye(g_pool,cap_src, cap_size,cap_special_id = 0, side='mono'):
     dispay_mode_enum = atb.enum("Mode",{"Camera Image":0,
                                         "Region of Interest":1,
                                         "Algorithm":2,
-                                        "Corse Pupil Region":3})
+                                        "CPU Save": 3})
 
     bar.add_var("FPS",bar.fps, step=1.,readonly=True)
     bar.add_var("Mode", bar.display,vtype=dispay_mode_enum, help="select the view-mode")
@@ -180,15 +195,25 @@ def eye(g_pool,cap_src, cap_size,cap_special_id = 0, side='mono'):
     on_resize(window,width,height)
 
     # gl_state settings
-    import OpenGL.GL as gl
-    gl.glEnable(gl.GL_POINT_SMOOTH)
-    gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
-    gl.glEnable(gl.GL_BLEND)
-    del gl
+    basic_gl_setup()
+    g_pool.image_tex = create_named_texture(frame.img)
+
+    # refresh speed settings
+    glfwSwapInterval(0)
+
 
     # event loop
     while not g_pool.quit.value:
-        frame = cap.get_frame()
+        # Get an image from the grabber
+        try:
+            frame = cap.get_frame()
+        except CameraCaptureError:
+            logger.error("Capture from Camera Failed. Stopping.")
+            break
+        except EndofVideoFileError:
+            logger.warning("Video File is done. Stopping")
+            break
+
         update_fps()
         sleep(bar.sleep.value) # for debugging only
 
@@ -199,13 +224,13 @@ def eye(g_pool,cap_src, cap_size,cap_special_id = 0, side='mono'):
             command = g_pool.eye_rx.recv()
             if command is not None:
                 record_path = command
-                print "INFO: Will save eye video to: ", record_path
+                logger.info("Will save eye video to: %s"%record_path)
                 video_path = os.path.join(record_path, "eye.avi")
                 timestamps_path = os.path.join(record_path, "eye_timestamps.npy")
                 writer = cv2.VideoWriter(video_path, cv2.cv.CV_FOURCC(*'DIVX'), bar.fps.value, (frame.img.shape[1], frame.img.shape[0]))
                 timestamps = []
             else:
-                print "INFO: Done recording eye."
+                logger.info("Done recording eye.")
                 writer = None
                 np.save(timestamps_path,np.asarray(timestamps))
                 del timestamps
@@ -215,57 +240,38 @@ def eye(g_pool,cap_src, cap_size,cap_special_id = 0, side='mono'):
             timestamps.append(frame.timestamp)
 
 
-        # IMAGE PROCESSING and clipping to user defined eye-region
-        eye_img = frame.img[u_r.lY:u_r.uY,u_r.lX:u_r.uX]
-        gray_img = grayscale(eye_img)
-
-        # coarse pupil detection
-        integral = cv2.integral(gray_img)
-        integral =  np.array(integral,dtype=c_float)
-        x,y,w = eye_filter(integral)
-        if w>0:
-            p_r.set((y,x,y+w,x+w))
-        else:
-            p_r.set((0,0,-1,-1))
-
-        # fine pupil ellipse detection
-        result = pupil_detector.detect(frame,u_roi=u_r,p_roi=p_r,visualize=bar.display.value == 2)
-        result['side']=side
-
+        # pupil ellipse detection
+        result = pupil_detector.detect(frame,user_roi=u_r,visualize=bar.display.value == 2)
         # stream the result
         g_pool.pupil_queue.put(result)
-
 
         # VISUALIZATION direct visualizations on the frame.img data
         if bar.display.value == 1:
             # and a solid (white) frame around the user defined ROI
-            gray_img[:,0] = 255
-            gray_img[:,-1]= 255
-            gray_img[0,:] = 255
-            gray_img[-1,:]= 255
-            frame.img[u_r.lY:u_r.uY,u_r.lX:u_r.uX] = cv2.cvtColor(gray_img, cv2.COLOR_GRAY2RGB)
+            r_img = frame.img[u_r.lY:u_r.uY,u_r.lX:u_r.uX]
+            r_img[:,0] = 255,255,255
+            r_img[:,-1]= 255,255,255
+            r_img[0,:] = 255,255,255
+            r_img[-1,:]= 255,255,255
 
-            pupil_img =frame.img[u_r.lY:u_r.uY,u_r.lX:u_r.uX][p_r.lY:p_r.uY,p_r.lX:p_r.uX] # create an RGB view onto the gray pupil ROI
-            # draw a frame around the automatic pupil ROI in overlay...
-            pupil_img[::2,0] = 255,0,0
-            pupil_img[::2,-1]= 255,0,0
-            pupil_img[0,::2] = 255,0,0
-            pupil_img[-1,::2]= 255,0,0
 
-            frame.img[u_r.lY:u_r.uY,u_r.lX:u_r.uX][p_r.lY:p_r.uY,p_r.lX:p_r.uX] = pupil_img
-
-        elif bar.display.value == 3:
-            frame.img = frame.img[u_r.lY:u_r.uY,u_r.lX:u_r.uX][p_r.lY:p_r.uY,p_r.lX:p_r.uX]
 
         # GL-drawing
         clear_gl_screen()
-        draw_gl_texture(frame.img)
+        make_coord_system_norm_based()
+        if bar.display.value != 3:
+            draw_named_texture(g_pool.image_tex,frame.img)
+        else:
+            draw_named_texture(g_pool.image_tex)
+        make_coord_system_pixel_based(frame.img.shape)
+
 
         if result['norm_pupil'] is not None and bar.draw_pupil.value:
-            pts = cv2.ellipse2Poly( (int(result['center'][0]),int(result['center'][1])),
-                                    (int(result["axes"][0]/2),int(result["axes"][1]/2)),
-                                    int(result["angle"]),0,360,15)
-            draw_gl_polyline(pts,(1.,0,0,.5))
+            if result.has_key('axes'):
+                pts = cv2.ellipse2Poly( (int(result['center'][0]),int(result['center'][1])),
+                                        (int(result["axes"][0]/2),int(result["axes"][1]/2)),
+                                        int(result["angle"]),0,360,15)
+                draw_gl_polyline(pts,(1.,0,0,.5))
             draw_gl_point_norm(result['norm_pupil'],color=(1.,0.,0.,0.5))
 
         atb.draw()
@@ -276,7 +282,7 @@ def eye(g_pool,cap_src, cap_size,cap_special_id = 0, side='mono'):
 
     # in case eye reconding was still runnnig: Save&close
     if writer:
-        print "INFO: Done recording eye"
+        logger.info("Done recording eye.")
         writer = None
         np.save(timestamps_path,np.asarray(timestamps))
 
@@ -287,25 +293,23 @@ def eye(g_pool,cap_src, cap_size,cap_special_id = 0, side='mono'):
     save('bar.draw_pupil',bar.draw_pupil.value)
     session_settings.close()
 
-
+    pupil_detector.cleanup()
     cap.close()
     atb.terminate()
     glfwDestroyWindow(window)
     glfwTerminate()
 
     #flushing queue incase world process did not exit gracefully
-    if side == 'left':
-        while not g_pool.pupil_queue.empty():
-            g_pool.pupil_queue.get()
-        g_pool.pupil_queue.close()
+    while not g_pool.pupil_queue.empty():
+        g_pool.pupil_queue.get()
+    g_pool.pupil_queue.close()
 
-    print "%s EYE Process closed" %side
-
+    logger.debug("Process done")
 
 def eye_profiled(g_pool,cap_src,cap_size):
     import cProfile,subprocess,os
     from eye import eye
-    cProfile.runctx("eye(g_pool,)",{"g_pool":g_pool,'cap_src':cap_src,'cap_size':cap_size},locals(),"eye.pstats")
+    cProfile.runctx("eye(g_pool,cap_src,cap_size)",{"g_pool":g_pool,'cap_src':cap_src,'cap_size':cap_size},locals(),"eye.pstats")
     loc = os.path.abspath(__file__).rsplit('pupil_src', 1)
     gprof2dot_loc = os.path.join(loc[0], 'pupil_src', 'shared_modules','gprof2dot.py')
     subprocess.call("python "+gprof2dot_loc+" -f pstats eye.pstats | dot -Tpng -o eye_cpu_time.png", shell=True)

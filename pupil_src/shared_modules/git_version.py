@@ -133,10 +133,9 @@ def get_tag_commit():
                   stdout=PIPE, stderr=PIPE)
         p.stderr.close()
         line = p.stdout.readlines()[0]
-        return line.strip()
-
+        return str(line.strip()) #make sure we have a proper version string.
     except:
-        return None
+        return "unknown"
 
 if __name__ == "__main__":
     print get_git_version()

@@ -1,19 +1,19 @@
 '''
 (*)~----------------------------------------------------------------------------------
  Pupil - eye tracking platform
- Copyright (C) 2012-2013  Moritz Kassner & William Patera
+ Copyright (C) 2012-2014  Pupil Labs
 
  Distributed under the terms of the CC BY-NC-SA License.
  License details are in the file license.txt, distributed as part of this software.
 ----------------------------------------------------------------------------------~(*)
 '''
+
 import sys,os
 import cv2 as cv
 import numpy as np
 
 
 def main():
-
     save_video = False
 
     try:
@@ -31,6 +31,7 @@ def main():
     timestamps_path = data_folder + "/timestamps.npy"
     gaze_positions_path = data_folder + "/gaze_positions.npy"
     record_path = data_folder + "/world_viz.avi"
+
 
     cap = cv.VideoCapture(video_path)
     gaze_list = list(np.load(gaze_positions_path))
@@ -68,22 +69,21 @@ def main():
     frame = 0
 
     fps = cap.get(5)
-    fps = 20
-    wait =  int((1./fps)*1000)
+    # wait =  int((1./fps)*1000)
 
     if save_video:
         #FFV1 -- good speed lossless big file
         #DIVX -- good speed good compression medium file
         writer = cv.VideoWriter(record_path, cv.cv.CV_FOURCC(*'DIVX'), fps, (img.shape[1], img.shape[0]))
 
+    past_gaze = []
 
     while status and frame < no_frames:
-
         # all gaze points of the current frame
         current_gaze = positions_by_frame[frame]
         for gaze_point in current_gaze:
             x_screen, y_screen = denormalize((gaze_point['x'], gaze_point['y']), width, height)
-            cv.circle(img, (x_screen, y_screen), 30, (255, 255, 255), 2, cv.cv.CV_AA)
+            cv.circle(img, (x_screen, y_screen), 30, (60, 20, 220), 2, cv.cv.CV_AA)
 
         cv.imshow("world", img)
 
@@ -92,22 +92,24 @@ def main():
 
         status, img = cap.read()
         frame += 1
-        ch = cv.waitKey(wait)
+        ch = cv.waitKey(1)
         if ch == 27:
             break
 
 
+
 def denormalize(pos, width, height, flip_y=True):
     """
-    denormalize and return as int
+    denormalize
     """
     x = pos[0]
     y = pos[1]
+    x *= width
     if flip_y:
-        y=-y
-    x = (x * width / 2.) + (width / 2.)
-    y = (y * height / 2.) + (height / 2.)
-    return int(x), int(y)
+        y = 1-y
+    y *= height
+    return int(x),int(y)
+
 
 if __name__ == '__main__':
     main()

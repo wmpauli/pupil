@@ -1,3 +1,15 @@
+'''
+(*)~----------------------------------------------------------------------------------
+ Pupil - eye tracking platform
+ Copyright (C) 2012-2014  Pupil Labs
+
+ Distributed under the terms of the CC BY-NC-SA License.
+ License details are in the file license.txt, distributed as part of this software.
+----------------------------------------------------------------------------------~(*)
+'''
+
+import logging
+logger = logging.getLogger(__name__)
 
 class Plugin(object):
     """docstring for Plugin
@@ -7,27 +19,27 @@ class Plugin(object):
     instances of this class ususally get added to a plugins list
     this list will have its members called with all methods invoked.
 
-    Creating an ATB Bar in __init__ is required in the class that is based on this class
-    Show at least some info about the Ref_Detector
-    self._bar = atb.Bar(name = self.__class__.__name__, label='your_label',
-                help="ref detection parameters", color=(50, 50, 50), alpha=100,
-                text='light', position=atb_pos,refresh=.3, size=(300, 150))
     """
     def __init__(self):
         self._alive = True
 
+        self.order = .5
+        # between 0 and 1 this indicated where in the plugin excecution order you plugin lives:
+        # <.5  are things that add/mofify information that will be used by other plugins and rely on untouched data.
+        # You should not edit frame.img if you are here!
+        # == 5 is the default.
+        # >.5 are things that depend on other plugins work like display , saving and streaming
+
+
     @property
     def alive(self):
-        """This field indicates of the instance should be detroyed
+        """
+        This field indicates of the instance should be detroyed
         Writing False to this will schedule the instance for deletion
         """
         if not self._alive:
             if hasattr(self,"cleanup"):
-                try:
                     self.cleanup()
-                except:
-                    print "cleanup failed. This is a bug. Please report"
-
         return self._alive
 
     @alive.setter
@@ -35,30 +47,47 @@ class Plugin(object):
         if isinstance(value,bool):
             self._alive = value
 
-    def on_click(self,pos):
+    def on_click(self,pos,button,action):
         """
         gets called when the user clicks in the window screen
         """
         pass
 
-    def update(self,img,recent_pupil_posotions):
+    def on_window_resize(self,window,w,h):
+        '''
+        gets called when user resizes window. 
+        window is the glfw window handle of the resized window.
+        '''
+        pass
+        
+    def update(self,frame,recent_pupil_positions,events):
         """
         gets called once every frame
+        if you plan to update the image data, note that this will affect all plugins axecuted after you.
+        Use self.order to deal with this appropriately
         """
         pass
+
+
 
     def gl_display(self):
         """
-        gets called once every frame
+        gets called once every frame when its time to draw onto the gl canvas.
         """
         pass
 
+
     def cleanup(self):
-        """gets called when the plugin get terminated.
-        This happends either volunatily or forced.
+        """
+        gets called when the plugin get terminated.
+        This happens either voluntarily or forced.
         if you have an atb bar or glfw window destroy it here.
         """
         pass
+
+    def get_class_name(self):
+        return self.__class__.__name__
+
 
     def __del__(self):
         self._alive = False
@@ -70,11 +99,16 @@ class Plugin(object):
 from glfw import *
 from plugin import Plugin
 
+from ctypes import c_int,c_bool
+import atb
+from gl_utils import adjust_gl_view,clear_gl_screen,basic_gl_setup
+
+
 # window calbacks
 def on_resize(window,w, h):
     active_window = glfwGetCurrentContext()
     glfwMakeContextCurrent(window)
-    adjust_gl_view(w,h)
+    adjust_gl_view(w,h,window)
     glfwMakeContextCurrent(active_window)
 
 class Example_Plugin(Plugin):
@@ -87,9 +121,9 @@ class Example_Plugin(Plugin):
         self._window = None
         self.fullscreen = c_bool(0)
         self.monitor_idx = c_int(0)
-        self.monitor_handles = glfwGetMonitors()
-        self.monitor_names = [glfwGetMonitorName(m) for m in self.monitor_handles]
-        monitor_enum = atb.enum("Monitor",dict(((key,val) for val,key in enumerate(self.monitor_names))))
+        monitor_handles = glfwGetMonitors()
+        self.monitor_names = [glfwGetMonitorName(m) for m in monitor_handles]
+        monitor_enum = atb.enum("Monitor",dict(((key,val) for val,key in enumerate(monitor_names))))
         #primary_monitor = glfwGetPrimaryMonitor()
 
         atb_label = "example plugin"
@@ -108,7 +142,7 @@ class Example_Plugin(Plugin):
     def open_window(self):
         if not self._window:
             if self.fullscreen.value:
-                monitor = self.monitor_handles[self.monitor_idx.value]
+                monitor = glfwGetMonitors()[self.monitor_idx.value]
                 mode = glfwGetVideoMode(monitor)
                 height,width= mode[0],mode[1]
             else:
@@ -129,12 +163,12 @@ class Example_Plugin(Plugin):
             # gl_state settings
             active_window = glfwGetCurrentContext()
             glfwMakeContextCurrent(self._window)
-            gl.glEnable(gl.GL_POINT_SMOOTH)
-            gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
-            gl.glEnable(gl.GL_BLEND)
-            gl.glClearColor(1.,1.,1.,0.)
-            glfwMakeContextCurrent(active_window)
+            basic_gl_setup()
 
+            # refresh speed settings
+            glfwSwapInterval(0)
+
+            glfwMakeContextCurrent(active_window)
             self.window_should_open = False
 
 
@@ -155,7 +189,7 @@ class Example_Plugin(Plugin):
             self.window_should_close = False
 
 
-    def update(self,frame,recent_pupil_positions):
+    def update(self,frame,recent_pupil_positions,events):
 
         if self.window_should_close:
             self.close_window()

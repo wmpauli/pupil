@@ -1,3 +1,13 @@
+'''
+(*)~----------------------------------------------------------------------------------
+ Pupil - eye tracking platform
+ Copyright (C) 2012-2014  Pupil Labs
+
+ Distributed under the terms of the CC BY-NC-SA License.
+ License details are in the file license.txt, distributed as part of this software.
+----------------------------------------------------------------------------------~(*)
+'''
+
 import os
 import cv2
 import numpy as np
@@ -5,11 +15,14 @@ from methods import normalize
 import calibrate
 from gl_utils import draw_gl_point_norm
 from ctypes import c_int,c_bool
-
+from glfw import GLFW_PRESS
 import atb
 import audio
 
 from plugin import Plugin
+#logging
+import logging
+logger = logging.getLogger(__name__)
 
 class Natural_Features_Calibration(Plugin):
     """Calibrate using natural features in a scene.
@@ -44,26 +57,27 @@ class Natural_Features_Calibration(Plugin):
 
     def start(self):
         audio.say("Starting Calibration")
+        logger.info("Starting Calibration")
         self.active = True
         self.ref_list = []
         self.pupil_list = []
 
     def stop(self):
         audio.say("Stopping Calibration")
+        logger.info("Stopping Calibration")
         self.active = False
-        # print len(self.pupil_list), len(self.ref_list)
         cal_pt_cloud = calibrate.preprocess_data(self.pupil_list,self.ref_list)
-        print "Collected ", len(cal_pt_cloud), " data points."
+        logger.info("Collected %s data points." %len(cal_pt_cloud))
         if len(cal_pt_cloud) < 20:
-            print "Did not collect enough data."
+            logger.warning("Did not collect enough data.")
             return
         cal_pt_cloud = np.array(cal_pt_cloud)
 
         img_size = self.first_img.shape[1],self.first_img.shape[0]
-        self.g_pool.map_pupil = calibrate.get_map_from_cloud(cal_pt_cloud,img_size,verbose=True)
+        self.g_pool.map_pupil = calibrate.get_map_from_cloud(cal_pt_cloud,img_size)
         np.save(os.path.join(self.g_pool.user_dir,'cal_pt_cloud.npy'),cal_pt_cloud)
 
-    def update(self,frame,recent_pupil_positions):
+    def update(self,frame,recent_pupil_positions,events):
         if self.active:
             img = frame.img
             if self.first_img is None:
@@ -99,10 +113,11 @@ class Natural_Features_Calibration(Plugin):
             draw_gl_point_norm(self.pos,size=self.r,color=(0.,1.,0.,.5))
 
 
-    def on_click(self,pos):
-        self.first_img = None
-        self.point = np.array([pos,],dtype=np.float32)
-        self.count = 30
+    def on_click(self,pos,button,action):
+        if action == GLFW_PRESS:
+            self.first_img = None
+            self.point = np.array([pos,],dtype=np.float32)
+            self.count = 30
 
     def cleanup(self):
         """gets called when the plugin get terminated.

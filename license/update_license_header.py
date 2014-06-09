@@ -1,3 +1,12 @@
+'''
+(*)~----------------------------------------------------------------------------------
+ Pupil - eye tracking platform
+ Copyright (C) 2012-2014  Pupil Labs
+
+ Distributed under the terms of the CC BY-NC-SA License.
+ License details are in the file license.txt, distributed as part of this software.
+----------------------------------------------------------------------------------~(*)
+'''
 import fnmatch
 import os
 import re
@@ -5,7 +14,7 @@ import re
 license_txt = """\
 (*)~----------------------------------------------------------------------------------
  Pupil - eye tracking platform
- Copyright (C) 2012-2013  Moritz Kassner & William Patera
+ Copyright (C) 2012-2014  Pupil Labs
 
  Distributed under the terms of the CC BY-NC-SA License.
  License details are in the file license.txt, distributed as part of this software.
@@ -22,7 +31,7 @@ pattern = re.compile('(\'{3}|[/][*])\n\([*]\)~(.+?)~\([*]\)\n(\'{3}|[*][/])', re
 # choose files types to include
 # choose directories to exclude from search
 includes = ['*.py', '*.c']
-excludes = ['.git', 'atb', 'glfw', 'src_video', 'v4l2_ctl', 'data', 'License', 'shader.py', 'vertex_buffer.py', 'gprof2dot.py','git_version.py']
+excludes = ['.git', 'atb', 'glfw', 'src_video', 'v4l2_ctl', 'data', 'License', 'shader.py', 'vertex_buffer.py', 'gprof2dot.py','git_version.py','libuvcc*' ]
 
 # transform glob patterns to regular expressions
 includes = r'|'.join([fnmatch.translate(x) for x in includes])
@@ -38,7 +47,7 @@ def get_files(start_dir, includes, excludes):
 			match_files += files
 	return match_files
 
-def write_header(file_name, pattern, license_txt):
+def write_header(file_name, license_txt):
 	# find and replace license header
 	# or add new header if not existing
 	c_comment = ['/*\n', '\n*/\n']
@@ -55,8 +64,8 @@ def write_header(file_name, pattern, license_txt):
 
 	with file(file_name, 'w') as modified:
 		if re.findall(pattern, data):
-			# if header already exists, then update
-			modified.write(re.sub(pattern, license_txt, data))
+			# if header already exists, then update, but dont add the last newline.
+			modified.write(re.sub(pattern, license_txt[:-1], data))
 			modified.close()
 		else:
 			# else write the license header
@@ -69,8 +78,8 @@ def update_header():
 	print match_files
 
 	for f in match_files:
-		write_header(f, pattern, license_txt)
+		write_header(f, license_txt)
 
 if __name__ == '__main__':
-	# run update_header() to add headers to found files
+	# run update_header() to add headers to find files
 	update_header()

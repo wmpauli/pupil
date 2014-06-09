@@ -7,6 +7,7 @@
  License details are in the file license.txt, distributed as part of this software.
 ----------------------------------------------------------------------------------~(*)
 '''
+
 """
 v4l2-ctl is a shell ultity that comes with 4vl2-utils:
 it allows getting and setting controls of UVC-capture devices
@@ -28,6 +29,9 @@ controls:
 """
 import sys,os
 import subprocess as sp
+#logging
+import logging
+logger = logging.getLogger(__name__)
 
 if getattr(sys, 'frozen', False):
     # we are running in a |PyInstaller| bundle
@@ -55,7 +59,7 @@ def get(device_number,control):
     get a single control value
     """
     device = "-d"+str(device_number)
-    print "getting control:", device_number,control,value
+    logger.debug("getting control: %s %s %s"%(device_number,control,value))
     ret = sp.check_output([v4l2_ctl,device,"-C"+control])
     return int(ret.split(":")[-1])
 
@@ -136,7 +140,7 @@ def extract_controls(device_number):
     try:
         ret = sp.check_output([v4l2_ctl,device,"-L"])
     except:
-        print "v4l2-ctl not found. No uvc control panel will be added"
+        logger.warning("v4l2-ctl not found. No uvc control panel will be added")
         return []
 
     lines = ret.split("\n")
@@ -146,8 +150,16 @@ def extract_controls(device_number):
     while lines:
         words = line.split(" ")
         words = [word for word in words if len(word)>0] #get rid of remaining spaces
-        control = dict()
-        control_name = words.pop(0) ###BUG this can fail if the line is empty...
+        control = {}
+        try:
+            control_name = words.pop(0)
+        except IndexError:
+            ###With some camera this can fail if the line is empty...
+            break
+
+        if control_name == "error":
+            break
+
         control["type"] =  words.pop(0)
         colon = words.pop(0) #throw away..
         while words:
@@ -209,8 +221,16 @@ def list_devices():
             device["location"]=loc
             device["src_id"]=src
             devices.append(device)
+
+    # let make sure we dont have cames with the same name...
+    names = [d["name"] for d in devices]
+    for idx in range(len(devices))[::-1]:
+        dub_count = names[:idx].count(devices[idx]['name'])
+        if dub_count:
+            devices[idx]['name'] += "(%i)"%dub_count
+
     return devices
 
 if __name__ == '__main__':
     print list_devices()
-    print extract_controls(0)
+    # print extract_controls(0)

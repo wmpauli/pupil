@@ -1,7 +1,7 @@
 '''
 (*)~----------------------------------------------------------------------------------
  Pupil - eye tracking platform
- Copyright (C) 2012-2013  Moritz Kassner & William Patera
+ Copyright (C) 2012-2014  Pupil Labs
 
  Distributed under the terms of the CC BY-NC-SA License.
  License details are in the file license.txt, distributed as part of this software.
@@ -200,7 +200,7 @@ def draw_markers(img,markers):
     for m in markers:
         centroid = [m['verts'].sum(axis=0)/4.]
         origin = m['verts'][0]
-        hat = np.array([[[0,0],[0,1],[.5,1.5],[1,1],[1,0]]],dtype=np.float32)
+        hat = np.array([[[0,0],[0,1],[.5,1.25],[1,1],[1,0]]],dtype=np.float32)
         hat = cv2.perspectiveTransform(hat,m_marker_to_screen(m))
         cv2.polylines(img,np.int0(hat),color = (0,0,255),isClosed=True)
         cv2.polylines(img,np.int0(centroid),color = (255,255,0),isClosed=True,thickness=2)
@@ -245,7 +245,7 @@ lk_params = dict( winSize  = (45, 45),
                   maxLevel = 1,
                   criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
 prev_img = None
-tick = 4
+tick = 0
 
 def detect_markers_robust(img,grid_size,prev_markers,min_marker_perimeter=40,aperture=11,visualize=False,true_detect_every_frame = 1):
     global prev_img

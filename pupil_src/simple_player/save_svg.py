@@ -1,7 +1,7 @@
 '''
 (*)~----------------------------------------------------------------------------------
  Pupil - eye tracking platform
- Copyright (C) 2012-2013  Moritz Kassner & William Patera
+ Copyright (C) 2012-2014  Pupil Labs
 
  Distributed under the terms of the CC BY-NC-SA License.
  License details are in the file license.txt, distributed as part of this software.
@@ -93,7 +93,8 @@ def main():
             gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
             prevPts = np.array(past_gaze,dtype=np.float32)
             nextPts = prevPts.copy()
-            nextPts, status, err = cv.calcOpticalFlowPyrLK(prevgray, gray,prevPts,nextPts)            prevgray = gray
+            nextPts, status, err = cv.calcOpticalFlowPyrLK(prevgray, gray,prevPts,nextPts)
+            prevgray = gray
             past_gaze = list(nextPts)
 
             #contrain gaze positions to
@@ -151,16 +152,15 @@ def main():
 
 def denormalize(pos, width, height, flip_y=True):
     """
-    denormalize and return as int
+    denormalize
     """
     x = pos[0]
     y = pos[1]
+    x *= width
     if flip_y:
-        y= -y
-    x = (x * width / 2.) + (width / 2.)
-    y = (y * height / 2.) + (height / 2.)
-    return x,y
-
+        y = 1-y
+    y *= height
+    return int(x),int(y)
 
 if __name__ == '__main__':
     main()

@@ -1,7 +1,7 @@
 '''
 (*)~----------------------------------------------------------------------------------
  Pupil - eye tracking platform
- Copyright (C) 2012-2013  Moritz Kassner & William Patera
+ Copyright (C) 2012-2014  Pupil Labs
 
  Distributed under the terms of the CC BY-NC-SA License.
  License details are in the file license.txt, distributed as part of this software.
@@ -22,6 +22,19 @@ import atb
 from time import time
 from raw import *
 from cv2 import VideoCapture
+
+#logging
+import logging
+logger = logging.getLogger(__name__)
+
+
+class CameraCaptureError(Exception):
+    """General Exception for this module"""
+    def __init__(self, arg):
+        super(CameraCaptureError, self).__init__()
+        self.arg = arg
+
+
 
 class Control(object):
     """docstring for uvcc_Control"""
@@ -123,7 +136,6 @@ class Controls(dict):
                 c.set_val(c.default)
 
     def __del__(self):
-        print "UVCC released"
         uvccReleaseCam(self.handle)
         uvccExit()
 
@@ -139,7 +151,33 @@ class Frame(object):
 
 class Camera_Capture(object):
     """docstring for uvcc_camera"""
-    def __init__(self, cam,size=(640,480),fps=30):
+    def __init__(self, cam,size=(640,480),fps=30,timebase=None):
+        self.fps = 30
+        self.src_id = cam.src_id
+        self.uId = cam.uId
+        self.name = cam.name
+        self.controls = Controls(self.uId)
+
+        if timebase == None:
+            logger.debug("Capture will run with default system timebase")
+            self.timebase = c_double(0)
+        elif isinstance(timebase,c_double):
+            logger.debug("Capture will run with app wide adjustable timebase")
+            self.timebase = timebase
+        else:
+            logger.error("Invalid timebase variable type. Will use default system timebase")
+            self.timebase = c_double(0)
+
+        try:
+            self.controls['UVCC_REQ_FOCUS_AUTO'].set_val(0)
+        except KeyError:
+            pass
+
+        self.capture = VideoCapture(self.src_id)
+        self.set_size(size)
+
+
+    def re_init(self,cam,size=(640,480),fps=30):
         self.src_id = cam.src_id
         self.uId = cam.uId
         self.name = cam.name
@@ -150,20 +188,27 @@ class Camera_Capture(object):
         except KeyError:
             pass
 
-        if '6000' in self.name and False: #on mac we dont have enough controls to use this right.
-            print "adjusting exposure for HD-6000 camera"
-            try:
-                self.controls['UVCC_REQ_EXPOSURE_AUTOMODE'].set_val(1)
-                self.controls['UVCC_REQ_EXPOSURE_ABS'].set_val(156)
-            except KeyError:
-                pass
-
         self.capture = VideoCapture(self.src_id)
         self.set_size(size)
 
+        #recreate the bar with new values
+        bar_pos = self.bar._get_position()
+        self.bar.destroy()
+        self.create_atb_bar(bar_pos)
+
+    def re_init_cam_by_src_id(self,src_id):
+        try:
+            cam = Camera_List()[src_id]
+        except KeyError:
+            logger.warning("could not reinit capture, src_id not valid anymore")
+            return
+        self.re_init(cam,self.get_size())
+
     def get_frame(self):
         s, img = self.capture.read()
-        timestamp = time()
+        if not s:
+            raise CameraCaptureError("Could not get frame")
+        timestamp = time()-self.timebase.value
         return Frame(timestamp,img)
 
     def set_size(self,size):
@@ -178,7 +223,14 @@ class Camera_Capture(object):
         self.capture.set(5,fps)
 
     def get_fps(self):
-        return self.capture.get(5)
+        fps = self.capture.get(5)
+        if fps != 0:
+            return fps
+        else:
+            return self.fps
+
+    def get_now(self):
+        return time()
 
     def create_atb_bar(self,pos):
         # add uvc camera controls to a separate ATB bar
@@ -191,6 +243,10 @@ class Camera_Capture(object):
         sorted_controls = [c for c in self.controls.itervalues()]
         sorted_controls.sort(key=lambda c: c.order)
 
+        cameras_enum = atb.enum("Capture",dict([(c.name,c.src_id) for c in Camera_List()]) )
+
+        self.bar.add_var("Capture",vtype=cameras_enum,getter=lambda:self.src_id, setter=self.re_init_cam_by_src_id)
+        self.bar.add_var('hardware timestamps',vtype=atb.TW_TYPE_BOOL8,getter=lambda:False)
         for control in sorted_controls:
             name = control.atb_name
             if control.type=="bool":
@@ -225,6 +281,8 @@ class Camera_Capture(object):
         pass
 
     def close(self):
+        self.control = None
+        logger.info("Capture released")
         pass
 
 
@@ -241,7 +299,7 @@ class Camera_List(list):
     def __init__(self):
         if getattr(sys, 'frozen', False):
             #explicit import needed when frozen
-            import QTKit 
+            import QTKit
 
         from QTKit import QTCaptureDevice,QTMediaTypeVideo
         qt_cameras =  QTCaptureDevice.inputDevicesWithMediaType_(QTMediaTypeVideo)

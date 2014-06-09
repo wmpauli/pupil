@@ -1,4 +1,14 @@
 /*
+(*)~----------------------------------------------------------------------------------
+ Pupil - eye tracking platform
+ Copyright (C) 2012-2014  Pupil Labs
+
+ Distributed under the terms of the CC BY-NC-SA License.
+ License details are in the file license.txt, distributed as part of this software.
+----------------------------------------------------------------------------------~(*)
+*/
+
+/*
  *  V4L2 video capture example
  *
  *  This program can be used and distributed without restrictions.
@@ -79,7 +89,8 @@ void *get_buffer(int fd,struct v4l2_buffer *buf){
 		if (-1 == r) {
 			if (EINTR == errno)
 				continue;
-			errno_exit("select");
+			return 0;
+			// errno_exit("select");
 		}
 
 		if (0 == r) {
@@ -103,7 +114,8 @@ void *get_buffer(int fd,struct v4l2_buffer *buf){
 			/* fall through */
 
 			default:
-				errno_exit("VIDIOC_DQBUF");
+				return 0;
+				// errno_exit("VIDIOC_DQBUF");
 			}
 		}
 		// printf("flags %u \n", buf->flags);
@@ -113,10 +125,27 @@ void *get_buffer(int fd,struct v4l2_buffer *buf){
 		// process_image(buffers[buf.index].start, buf.bytesused);
 
 		struct timespec raw_tv;
-		clock_gettime(CLOCK_MONOTONIC_RAW, &raw_tv);
+		clock_gettime(CLOCK_MONOTONIC, &raw_tv);
+
+		// CLOCK_REALTIME
+		// - can jump
+		// - can slew
+		// - if ntp is running this clock is always kept close to GMT. even if hardware is not 100% correct, ntp will correct everything over time.
+
+		// CLOCK_MONOTONIC
+		// - cannot jump
+		// - can slew !!! (because of ntp)
+		// - it is not kept in sync with GMT. but the "speed" of seconds is kept in sync with GMT by varying it constantly by ntp.
+
+		// CLOCK_MONOTONIC_RAW
+		// - cannot jump
+		// - cannot slew !
+		// - the speed of seconds is not the same as the speed of GMT seconds since the hardware timer is never 100% exact and ntp daemon does NOT have influence here
+
+
 		// printf("current time %ld, %ld\n", raw_tv.tv_sec, raw_tv.tv_nsec);
-		buf->timestamp.tv_sec = (long) raw_tv.tv_sec;
-		buf->timestamp.tv_usec = raw_tv.tv_nsec/1000; 
+		// buf->timestamp.tv_sec = (long) raw_tv.tv_sec;
+		// buf->timestamp.tv_usec = raw_tv.tv_nsec/1000;
 		return buffers[buf->index].start;
 	}
 }
@@ -124,20 +153,23 @@ void *get_buffer(int fd,struct v4l2_buffer *buf){
 
 int release_buffer(int fd, struct v4l2_buffer *buf){
 	if (-1 == xioctl(fd, VIDIOC_QBUF, buf))
-			errno_exit("VIDIOC_QBUF");
+			// errno_exit("VIDIOC_QBUF");
+			return 0;
 	return 1;
 }
 
 
-void stop_capturing(int fd)
+int stop_capturing(int fd)
 {
 	enum v4l2_buf_type type;
 	type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	if (-1 == xioctl(fd, VIDIOC_STREAMOFF, &type))
-		errno_exit("VIDIOC_STREAMOFF");
+		// errno_exit("VIDIOC_STREAMOFF");
+		return 0;
+	return 1;
 }
 
-void start_capturing(int fd)
+int start_capturing(int fd)
 {
 	unsigned int i;
 	enum v4l2_buf_type type;
@@ -150,11 +182,13 @@ void start_capturing(int fd)
 		buf.index = i;
 
 		if (-1 == xioctl(fd, VIDIOC_QBUF, &buf))
-			errno_exit("VIDIOC_QBUF");
+			// errno_exit("VIDIOC_QBUF");
+			return -1;
 	}
 	type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	if (-1 == xioctl(fd, VIDIOC_STREAMON, &type))
 		errno_exit("VIDIOC_STREAMON");
+	return 1;
 }
 
 void uninit_device(int vd)
@@ -162,7 +196,7 @@ void uninit_device(int vd)
 	unsigned int i;
 	for (i = 0; i < n_buffers; ++i)
 		if (-1 == v4l2_munmap(buffers[i].start, buffers[i].length))
-			errno_exit("munmap");
+			// errno_exit("munmap");
 	free(buffers);
 }
 
@@ -261,6 +295,12 @@ int verify_device(int fd)
 	return 0;
 }
 
+double get_time_monotonic(void){
+	struct timespec raw_tv;
+	clock_gettime(CLOCK_MONOTONIC, &raw_tv);
+	return raw_tv.tv_sec + raw_tv.tv_nsec * 1e-9;
+}
+
 // void init_device(int fd,struct v4l2_format *fmt, struct v4l2_streamparm *params)
 // {
 // 	struct v4l2_capability cap;
@@ -334,8 +374,8 @@ int verify_device(int fd)
 // 	if (-1 == xioctl(fd, VIDIOC_G_FMT, &fmt))
 // 		errno_exit("VIDIOC_G_FMT");
 // 	fprintf(stderr, "Set resolution: %u x %u \r\n",fmt.fmt.pix.width, fmt.fmt.pix.height );
-// 	*width = fmt.fmt.pix.width; 
-// 	*height = fmt.fmt.pix.height; 
+// 	*width = fmt.fmt.pix.width;
+// 	*height = fmt.fmt.pix.height;
 
 // 	/* Buggy driver paranoia. */
 // 	min = fmt.fmt.pix.width * 2;
@@ -364,13 +404,14 @@ int verify_device(int fd)
 // 	fprintf(stderr, "framerate: %i/%i \n",params.parm.capture.timeperframe.numerator ,params.parm.capture.timeperframe.denominator  );
 // 	*fps_numer =params.parm.capture.timeperframe.numerator;
 // 	*fps_denom = params.parm.capture.timeperframe.denominator;
-// 	init_mmap(fd);	
+// 	init_mmap(fd);
 // }
 
 int close_device(int fd)
 {
 	if (-1 == close(fd))
-		errno_exit("close");
+		return 0;
+		// errno_exit("close");
 
 	fd = -1;
 	return fd;
@@ -415,18 +456,18 @@ int open_device(char *dev_name_)
 //         frmsize.pixel_format = fmt.pixelformat;
 //         char c[4];
 //         c[0] =  (char) (fmt.pixelformat>>0);
-//         c[1] =  (char) (fmt.pixelformat>>8);        
+//         c[1] =  (char) (fmt.pixelformat>>8);
 //         c[2] =  (char) (fmt.pixelformat>>16);
 //         c[3] =  (char) (fmt.pixelformat>>24);
 //         printf("Pixelformat %s \n", c);
 //         frmsize.index = 0;
 //         while (xioctl(fd, VIDIOC_ENUM_FRAMESIZES, &frmsize) >= 0) {
 //             if (frmsize.type == V4L2_FRMSIZE_TYPE_DISCRETE) {
-//                 printf("%dx%d\n", 
+//                 printf("%dx%d\n",
 //                                   frmsize.discrete.width,
 //                                   frmsize.discrete.height);
 //             } else if (frmsize.type == V4L2_FRMSIZE_TYPE_STEPWISE) {
-//                 printf("%dx%d\n", 
+//                 printf("%dx%d\n",
 //                                   frmsize.stepwise.max_width,
 //                                   frmsize.stepwise.max_height);
 //             }
@@ -459,11 +500,11 @@ int open_device(char *dev_name_)
    //      frmsize.index = 0;
    //      while (ioctl(fd, VIDIOC_ENUM_FRAMESIZES, &frmsize) >= 0) {
    //          if (frmsize.type == V4L2_FRMSIZE_TYPE_DISCRETE) {
-   //              printf("%dx%d\n", 
+   //              printf("%dx%d\n",
    //                                frmsize.discrete.width,
    //                                frmsize.discrete.height);
    //          } else if (frmsize.type == V4L2_FRMSIZE_TYPE_STEPWISE) {
-   //              printf("%dx%d\n", 
+   //              printf("%dx%d\n",
    //                                frmsize.stepwise.max_width,
    //                                frmsize.stepwise.max_height);
    //          }

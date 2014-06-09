@@ -1,22 +1,34 @@
+'''
+(*)~----------------------------------------------------------------------------------
+ Pupil - eye tracking platform
+ Copyright (C) 2012-2014  Pupil Labs
+
+ Distributed under the terms of the CC BY-NC-SA License.
+ License details are in the file license.txt, distributed as part of this software.
+----------------------------------------------------------------------------------~(*)
+'''
+
 import os
 import cv2
 import numpy as np
-from gl_utils import draw_gl_polyline,adjust_gl_view,clear_gl_screen,draw_gl_point
+from gl_utils import draw_gl_polyline,adjust_gl_view,clear_gl_screen,draw_gl_point,draw_gl_point_norm,basic_gl_setup
 from methods import normalize
 import atb
 import audio
 from ctypes import c_int,c_bool
-import OpenGL.GL as gl
-from OpenGL.GLU import gluOrtho2D
 
 from glfw import *
 from plugin import Plugin
+#logging
+import logging
+logger = logging.getLogger(__name__)
+
 
 # window calbacks
 def on_resize(window,w, h):
     active_window = glfwGetCurrentContext()
     glfwMakeContextCurrent(window)
-    adjust_gl_view(w,h)
+    adjust_gl_view(w,h,window)
     glfwMakeContextCurrent(active_window)
 
 class Camera_Intrinsics_Estimation(Plugin):
@@ -43,8 +55,8 @@ class Camera_Intrinsics_Estimation(Plugin):
         self._window = None
         self.fullscreen = c_bool(0)
         self.monitor_idx = c_int(0)
-        self.monitor_handles = glfwGetMonitors()
-        self.monitor_names = [glfwGetMonitorName(m) for m in self.monitor_handles]
+        monitor_handles = glfwGetMonitors()
+        self.monitor_names = [glfwGetMonitorName(m) for m in monitor_handles]
         monitor_enum = atb.enum("Monitor",dict(((key,val) for val,key in enumerate(self.monitor_names))))
         #primary_monitor = glfwGetPrimaryMonitor()
 
@@ -74,14 +86,14 @@ class Camera_Intrinsics_Estimation(Plugin):
     def open_window(self):
         if not self._window:
             if self.fullscreen.value:
-                monitor = self.monitor_handles[self.monitor_idx.value]
+                monitor = glfwGetMonitors()[self.monitor_idx.value]
                 mode = glfwGetVideoMode(monitor)
                 height,width= mode[0],mode[1]
             else:
                 monitor = None
                 height,width= 640,360
 
-            self._window = glfwCreateWindow(height, width, "Calibration", monitor=monitor, share=None)
+            self._window = glfwCreateWindow(height, width, "Calibration", monitor=monitor, share=glfwGetCurrentContext())
             if not self.fullscreen.value:
                 glfwSetWindowPos(self._window,200,0)
 
@@ -96,10 +108,7 @@ class Camera_Intrinsics_Estimation(Plugin):
             # gl_state settings
             active_window = glfwGetCurrentContext()
             glfwMakeContextCurrent(self._window)
-            gl.glEnable(gl.GL_POINT_SMOOTH)
-            gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
-            gl.glEnable(gl.GL_BLEND)
-            gl.glClearColor(1.,1.,1.,0.)
+            basic_gl_setup()
             glfwMakeContextCurrent(active_window)
 
             self.window_should_open = False
@@ -130,8 +139,9 @@ class Camera_Intrinsics_Estimation(Plugin):
         np.save(os.path.join(self.g_pool.user_dir,'camera_matrix.npy'), camera_matrix)
         np.save(os.path.join(self.g_pool.user_dir,"dist_coefs.npy"), dist_coefs)
         audio.say("Camera calibrated. Calibration saved to user folder")
+        logger.info("Camera calibrated. Calibration saved to user folder")
 
-    def update(self,frame,recent_pupil_positions):
+    def update(self,frame,recent_pupil_positions,events):
         if self.collect_new:
             img = frame.img
             status, grid_points = cv2.findCirclesGridDefault(img, (4,11), flags=cv2.CALIB_CB_ASYMMETRIC_GRID)
@@ -174,10 +184,11 @@ class Camera_Intrinsics_Estimation(Plugin):
 
         clear_gl_screen()
         #todo write code to display pattern.
-
         # r = 60.
         # gl.glMatrixMode(gl.GL_PROJECTION)
         # gl.glLoadIdentity()
+        # draw_gl_point((-.5,-.5),50.)
+
         # p_window_size = glfwGetWindowSize(self._window)
         # # compensate for radius of marker
         # x_border,y_border = normalize((r,r),p_window_size)

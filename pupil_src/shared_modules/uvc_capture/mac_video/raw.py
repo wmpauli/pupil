@@ -1,17 +1,20 @@
 '''
 (*)~----------------------------------------------------------------------------------
  Pupil - eye tracking platform
- Copyright (C) 2012-2013  Moritz Kassner & William Patera
+ Copyright (C) 2012-2014  Pupil Labs
 
  Distributed under the terms of the CC BY-NC-SA License.
  License details are in the file license.txt, distributed as part of this software.
 ----------------------------------------------------------------------------------~(*)
 '''
 
-
 from ctypes import *
 from cf_string import CFSTR, cfstring_to_string_release
 import os,sys
+
+#logging
+import logging
+logger = logging.getLogger(__name__)
 
 
 if getattr(sys, 'frozen', False):
@@ -25,11 +28,11 @@ else:
     #  Make is invoked when this module is imported or run.
 
     from subprocess import check_output
-    # print " compiling now."
+    logger.debug("Compiling now.")
     compiler_status = check_output(["make"],cwd=source_loc)
-    # print compiler_status
+    logger.debug('Compiler status: %s'%compiler_status)
     del check_output
-    # print "c-methods: compiling done."
+    logger.debug("Compiling done.")
     dll_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uvcc.so')
 
 
@@ -156,14 +159,14 @@ def uvccReleaseCam(cam):
 
 def uvccOpenCam(cam):
     if __uvcc_dll.uvccOpenCam(cam) !=0:
-        print "Cam could not be opended"
+        logger.error("Cam could not be opended")
         return False
     else:
         return True
 
 def uvccCloseCam(cam):
     if __uvcc_dll.uvccCloseCam(cam) !=0:
-        print "Cam could not be closed"
+        logger.error("Cam could not be closed")
         return False
     else:
         return True
@@ -217,7 +220,7 @@ def uvccGetCamsWithModelID(mId):
     if cam_n > 0 :
         return cam_list,cam_n
     else:
-        print "could not add camera that matched uvccModelId"
+        logger.error("could not add camera that matched uvccModelId: %s"%mId)
         return None,0
 
 def uvccGetCamWithQTUniqueID(uId):

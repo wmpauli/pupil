@@ -1,18 +1,33 @@
+'''
+(*)~----------------------------------------------------------------------------------
+ Pupil - eye tracking platform
+ Copyright (C) 2012-2014  Pupil Labs
+
+ Distributed under the terms of the CC BY-NC-SA License.
+ License details are in the file license.txt, distributed as part of this software.
+----------------------------------------------------------------------------------~(*)
+'''
+
 import os
 import cv2
 import numpy as np
 from methods import normalize,denormalize
-from gl_utils import draw_gl_point,draw_gl_point_norm,draw_gl_polyline, adjust_gl_view,clear_gl_screen
+from gl_utils import draw_gl_point,adjust_gl_view,draw_gl_point_norm,draw_gl_polyline,clear_gl_screen,basic_gl_setup
 import OpenGL.GL as gl
 from glfw import *
 from OpenGL.GLU import gluOrtho2D
 import calibrate
+from circle_detector import get_canditate_ellipses
+
 from ctypes import c_int,c_bool
 import atb
 import audio
 
 from plugin import Plugin
 
+#logging
+import logging
+logger = logging.getLogger(__name__)
 
 
 def draw_circle(pos,r,c):
@@ -31,7 +46,7 @@ def draw_marker(pos):
 def on_resize(window,w, h):
     active_window = glfwGetCurrentContext()
     glfwMakeContextCurrent(window)
-    adjust_gl_view(w,h)
+    adjust_gl_view(w,h,window)
     glfwMakeContextCurrent(active_window)
 
 
@@ -57,7 +72,6 @@ class Screen_Marker_Calibration(Plugin):
         self.pos = None
 
         self.show_edges = c_bool(0)
-        self.aperture = c_int(7)
         self.dist_threshold = c_int(5)
         self.area_threshold = c_int(20)
 
@@ -68,8 +82,8 @@ class Screen_Marker_Calibration(Plugin):
         self.window_should_open = False
         self.fullscreen = c_bool(1)
         self.monitor_idx = c_int(0)
-        self.monitor_handles = glfwGetMonitors()
-        self.monitor_names = [glfwGetMonitorName(m) for m in self.monitor_handles]
+        monitor_handles = glfwGetMonitors()
+        self.monitor_names = [glfwGetMonitorName(m) for m in monitor_handles]
         monitor_enum = atb.enum("Monitor",dict(((key,val) for val,key in enumerate(self.monitor_names))))
         #primary_monitor = glfwGetPrimaryMonitor()
 
@@ -79,16 +93,14 @@ class Screen_Marker_Calibration(Plugin):
         # Creating an ATB Bar is required. Show at least some info about the Ref_Detector
         self._bar = atb.Bar(name = self.__class__.__name__, label=atb_label,
             help="ref detection parameters", color=(50, 50, 50), alpha=100,
-            text='light', position=atb_pos,refresh=.3, size=(300, 100))
+            text='light', position=atb_pos,refresh=.3, size=(300, 90))
         self._bar.add_var("monitor",self.monitor_idx, vtype=monitor_enum)
         self._bar.add_var("fullscreen", self.fullscreen)
         self._bar.add_button("  start calibrating  ", self.start, key='c')
 
-        self._bar.add_separator("Sep1")
-        self._bar.add_var("show edges",self.show_edges)
-        self._bar.add_var("aperture", self.aperture, min=3,step=2)
-        self._bar.add_var("area threshold", self.area_threshold)
-        self._bar.add_var("eccetricity threshold", self.dist_threshold)
+        self._bar.add_var("show edges",self.show_edges, group="Detector Variables")
+        self._bar.add_var("area threshold", self.area_threshold ,group="Detector Variables")
+        self._bar.add_var("eccetricity threshold", self.dist_threshold, group="Detector Variables" )
 
 
     def start(self):
@@ -96,14 +108,12 @@ class Screen_Marker_Calibration(Plugin):
             return
 
         audio.say("Starting Calibration")
-
-        c = 1.
-        self.sites = [  (.0, 0),
-                        (-c,c), (0.,c),(c,c),
-                        (c,0.),
-                        (c,-c), (0., -c),( -c, -c),
-                        (-c,0.),
-                        (.0,0.),(.0,0.)]
+        logger.info("Starting Calibration")
+        self.sites = [  (.25, .5), (0,.5),
+                        (0.,1),(.5,1),(1.,1.),
+                        (1,.5),
+                        (1., 0),(.5, 0),(0,0.),
+                        (.75,.5),(.75,.5)]
 
         self.active_site = 0
         self.active = True
@@ -114,14 +124,14 @@ class Screen_Marker_Calibration(Plugin):
     def open_window(self):
         if not self._window:
             if self.fullscreen.value:
-                monitor = self.monitor_handles[self.monitor_idx.value]
+                monitor = glfwGetMonitors()[self.monitor_idx.value]
                 mode = glfwGetVideoMode(monitor)
                 height,width= mode[0],mode[1]
             else:
                 monitor = None
                 height,width= 640,360
 
-            self._window = glfwCreateWindow(height, width, "Calibration", monitor=monitor, share=None)
+            self._window = glfwCreateWindow(height, width, "Calibration", monitor=monitor, share=glfwGetCurrentContext())
             if not self.fullscreen.value:
                 glfwSetWindowPos(self._window,200,0)
 
@@ -135,10 +145,10 @@ class Screen_Marker_Calibration(Plugin):
             # gl_state settings
             active_window = glfwGetCurrentContext()
             glfwMakeContextCurrent(self._window)
-            gl.glEnable(gl.GL_POINT_SMOOTH)
-            gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
-            gl.glEnable(gl.GL_BLEND)
-            gl.glClearColor(1.,1.,1.,0.)
+            basic_gl_setup()
+            # refresh speed settings
+            glfwSwapInterval(0)
+
             glfwMakeContextCurrent(active_window)
             self.window_should_open = False
 
@@ -155,21 +165,21 @@ class Screen_Marker_Calibration(Plugin):
 
     def stop(self):
         audio.say("Stopping Calibration")
+        logger.info('Stopping Calibration')
         self.screen_marker_state = 0
         self.active = False
         self.window_should_close = True
 
-        print len(self.pupil_list), len(self.ref_list)
         cal_pt_cloud = calibrate.preprocess_data(self.pupil_list,self.ref_list)
 
-        print "Collected ", len(cal_pt_cloud), " data points."
+        logger.info("Collected %s data points." %len(cal_pt_cloud))
 
         if len(cal_pt_cloud) < 20:
-            print "Did not collect enough data."
+            logger.warning("Did not collect enough data.")
             return
 
         cal_pt_cloud = np.array(cal_pt_cloud)
-        map_fn = calibrate.get_map_from_cloud(cal_pt_cloud,self.world_size,verbose=True)
+        map_fn = calibrate.get_map_from_cloud(cal_pt_cloud,self.world_size)
         self.g_pool.map_pupil = map_fn
         np.save(os.path.join(self.g_pool.user_dir,'cal_pt_cloud.npy'),cal_pt_cloud)
 
@@ -180,7 +190,7 @@ class Screen_Marker_Calibration(Plugin):
             self.window_should_close = False
 
 
-    def update(self,frame,recent_pupil_positions):
+    def update(self,frame,recent_pupil_positions,events):
         if self.window_should_close:
             self.close_window()
 
@@ -195,61 +205,11 @@ class Screen_Marker_Calibration(Plugin):
                 self.world_size = img.shape[1],img.shape[0]
 
             #detect the marker
-            gray_img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-            # self.candidate_points = self.detector.detect(s_img)
-
-            # get threshold image used to get crisp-clean edges
-            edges = cv2.adaptiveThreshold(gray_img, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, self.aperture.value, 7)
-            # cv2.flip(edges,1 ,dst = edges,)
-            # display the image for debugging purpuses
-            # img[:] = cv2.cvtColor(edges,cv2.COLOR_GRAY2BGR)
-            contours, hierarchy = cv2.findContours(edges,
-                                            mode=cv2.RETR_TREE,
-                                            method=cv2.CHAIN_APPROX_NONE,offset=(0,0)) #TC89_KCOS
-
-            # remove extra encapsulation
-            hierarchy = hierarchy[0]
-            # turn outmost list into array
-            contours =  np.array(contours)
-            # keep only contours                        with parents     and      children
-            contained_contours = contours[np.logical_and(hierarchy[:,3]>=0, hierarchy[:,2]>=0)]
-            # turn on to debug contours
-            if self.show_edges.value:
-                cv2.drawContours(img, contained_contours,-1, (0,0,255))
-
-            # need at least 5 points to fit ellipse
-            contained_contours =  [c for c in contained_contours if len(c) >= 5]
-
-            ellipses = [cv2.fitEllipse(c) for c in contained_contours]
-            self.candidate_ellipses = []
-
-
-            # filter for ellipses that have similar area as the source contour
-            for e,c in zip(ellipses,contained_contours):
-                a,b = e[1][0]/2.,e[1][1]/2.
-                if abs(cv2.contourArea(c)-np.pi*a*b) <self.area_threshold.value:
-                    self.candidate_ellipses.append(e)
-
-
-            def man_dist(e,other):
-                return abs(e[0][0]-other[0][0])+abs(e[0][1]-other[0][1])
-
-            def get_cluster(ellipses):
-                # retrun the first cluser of at least 3 concetric ellipses
-                for e in ellipses:
-                    close_ones = []
-                    for other in ellipses:
-                        if man_dist(e,other)<self.dist_threshold.value:
-                            close_ones.append(other)
-                    if len(close_ones)>=4:
-                        # sort by major axis to return smallest ellipse first
-                        close_ones.sort(key=lambda e: max(e[1]))
-                        return close_ones
-                return []
-
-            self.candidate_ellipses = get_cluster(self.candidate_ellipses)
-
-
+            self.candidate_ellipses = get_canditate_ellipses(img,
+                                                            area_threshold=self.area_threshold.value,
+                                                            dist_threshold=self.dist_threshold.value,
+                                                            min_ring_count=4,
+                                                            visual_debug=self.show_edges.value)
 
             if len(self.candidate_ellipses) > 0:
                 self.detected= True
@@ -281,7 +241,7 @@ class Screen_Marker_Calibration(Plugin):
             else:
                 self.screen_marker_state = 0
                 self.active_site += 1
-                print self.active_site
+                logger.debug("Moving screen marker to site no %s"%self.active_site)
                 if self.active_site == 10:
                     self.stop()
                     return
@@ -359,9 +319,9 @@ class Screen_Marker_Calibration(Plugin):
         #some feedback on the detection state
 
         if self.detected and self.on_position:
-            draw_gl_point(screen_pos, 5.0, (0.,1.,0.,1.))
+            draw_gl_point(screen_pos, 5, (0.,1.,0.,1.))
         else:
-            draw_gl_point(screen_pos, 5.0, (1.,0.,0.,1.))
+            draw_gl_point(screen_pos, 5, (1.,0.,0.,1.))
 
         glfwSwapBuffers(self._window)
         glfwMakeContextCurrent(active_window)

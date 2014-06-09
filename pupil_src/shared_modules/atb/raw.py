@@ -65,6 +65,7 @@ TwMouseButton  = __dll__.TwMouseButton
 TwMouseMotion  = __dll__.TwMouseMotion
 TwWindowSize   = __dll__.TwWindowSize
 TwMouseWheel   = __dll__.TwMouseWheel
+TwSetCurrentWindow = __dll__.TwSetCurrentWindow
 
 TwEventMouseButtonGLFW = __dll__.TwEventMouseButtonGLFW
 # TwEventMouseMotionGLUT = __dll__.TwEventMousePosGLFW
@@ -88,6 +89,7 @@ TwGetLastError.restype = c_char_p
 TwGetBarName.restype = c_char_p
 TwNewBar.restype = c_pointer
 TwDeleteBar.argtypes = c_pointer,
+TwRemoveAllVars.argtypes = c_pointer,
 TwAddSeparator.restype = c_pointer
 TwAddSeparator.argtypes = [c_pointer, c_char_p, c_char_p]
 TwAddVarRW.restype   = c_pointer

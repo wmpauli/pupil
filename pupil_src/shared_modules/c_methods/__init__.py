@@ -1,7 +1,7 @@
 '''
 (*)~----------------------------------------------------------------------------------
  Pupil - eye tracking platform
- Copyright (C) 2012-2013  Moritz Kassner & William Patera
+ Copyright (C) 2012-2014  Pupil Labs
 
  Distributed under the terms of the CC BY-NC-SA License.
  License details are in the file license.txt, distributed as part of this software.
@@ -17,11 +17,10 @@ Only wrappers are exposed not the loaded libraries.
 from ctypes import *
 from numpy.ctypeslib import ndpointer
 import os,sys
+#logging
+import logging
+logger = logging.getLogger(__name__)
 
-### Get location of  this file
-
-
-# source_loc = os.path.dirname(os.path.abspath(__file__))
 
 if getattr(sys, 'frozen', False):
     # we are running in a |PyInstaller| bundle
@@ -41,12 +40,13 @@ else:
         c_flags = "CFLAGS=-m32"
 
     from subprocess import check_output
-    # print "c-methods: compiling now."
+    logger.debug("Compiling now.")
     compiler_status = check_output(["make",c_flags],cwd=basedir)
-    # print "c-methods:",compiler_status
+    logger.debug('Compiler status: %s'%compiler_status)
     del check_output
-    # print "c-methods: compiling done."
+    logger.debug("Compiling done.")
     dll_path = basedir + os.path.sep + 'methods.so'
+
 
     ### C-Types binary loading
     if not os.path.isfile(dll_path):
@@ -62,7 +62,12 @@ __methods_dll.filter.argtypes = [ndpointer(c_float),  # integral image
                                 c_size_t,           # cols/shape[1]
                                 POINTER(c_int),     # maximal response top left anchor pos height
                                 POINTER(c_int),     # maximal response top left anchor pos width
-                                POINTER(c_int)]     # maxinal response window size
+                                POINTER(c_int),     # maxinal response window size
+                                c_int,     # maximal response min_w
+                                c_int,     # maximal response max_w
+                                POINTER(c_float)]     # maxinal response filter_response
+
+
 ### C-Types Argtypes and Restype
 __methods_dll.ring_filter.argtypes = [ndpointer(c_float),  # integral image
                                     c_size_t,           # rows/shape[0]
@@ -74,11 +79,13 @@ __methods_dll.ring_filter.argtypes = [ndpointer(c_float),  # integral image
 
 
 ### Function Wrappers
-def eye_filter(integral):
+def eye_filter(integral,min_w=10,max_w=100):
     rows, cols = integral.shape[0],integral.shape[1]
     x, y, w = c_int(), c_int(), c_int()
-    __methods_dll.filter(integral,rows,cols,x,y,w)
-    return x.value,y.value,w.value
+    response = c_float()
+    min_w,max_w = c_int(min_w),c_int(max_w)
+    __methods_dll.filter(integral,rows,cols,x,y,w,min_w,max_w,response)
+    return x.value,y.value,w.value,response.value
 
 ### Function Wrappers
 def ring_filter(integral):

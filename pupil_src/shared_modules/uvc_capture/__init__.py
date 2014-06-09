@@ -1,7 +1,7 @@
 '''
 (*)~----------------------------------------------------------------------------------
  Pupil - eye tracking platform
- Copyright (C) 2012-2013  Moritz Kassner & William Patera
+ Copyright (C) 2012-2014  Pupil Labs
 
  Distributed under the terms of the CC BY-NC-SA License.
  License details are in the file license.txt, distributed as part of this software.
@@ -19,8 +19,8 @@ it requires:
     - on Linux: v4l2-ctl (via apt-get install v4l2-util)
     - on MacOS: uvcc (binary is distributed with this module)
 """
-
-from cv2 import VideoCapture
+import os,sys
+import cv2
 import numpy as np
 from os.path import isfile
 from time import time
@@ -29,75 +29,24 @@ import platform
 os_name = platform.system()
 del platform
 
+#logging
+import logging
+logger = logging.getLogger(__name__)
+
 
 ###OS specific imports and defs
 if os_name == "Linux":
-    from linux_video import Camera_Capture,Camera_List
+    from linux_video import Camera_Capture,Camera_List,CameraCaptureError
 elif os_name == "Darwin":
-    from mac_video import Camera_Capture,Camera_List
+    from mac_video import Camera_Capture,Camera_List,CameraCaptureError
 else:
-    from other_video import Camera_Capture,Camera_List
+    from other_video import Camera_Capture,Camera_List,CameraCaptureError
+
+from fake_capture import FakeCapture
+from file_capture import File_Capture, FileCaptureError, EndofVideoFileError,FileSeekError
 
 
-# non os specific defines
-
-
-class Frame(object):
-    """docstring of Frame"""
-    def __init__(self, timestamp,img,compressed_img=None, compressed_pix_fmt=None):
-        self.timestamp = timestamp
-        self.img = img
-        self.compressed_img = compressed_img
-        self.compressed_pix_fmt = compressed_pix_fmt
-
-
-class FileCapture():
-    """
-    simple file capture that can auto_rewind
-    """
-    def __init__(self,src):
-        self.auto_rewind = True
-        self.controls = None #No UVC controls available with file capture
-        # we initialize the actual capture based on cv2.VideoCapture
-        self.cap = VideoCapture(src)
-        self._get_frame_ = self.cap.read
-
-
-    def get_size(self):
-        return self.cap.get(3),self.cap.get(4)
-
-    def set_fps(self):
-        pass
-
-    def get_fps(self):
-        return None
-
-    def read(self):
-        s, img =self._get_frame_()
-        if  self.auto_rewind and not s:
-            self.rewind()
-            s, img = self._get_frame_()
-        return s,img
-
-    def get_frame(self):
-        s, img = self.read()
-        timestamp = time()
-        return Frame(timestamp,img)
-
-    def rewind(self):
-        self.cap.set(1,0) #seek to the beginning
-
-    def create_atb_bar(self,pos):
-        return 0,0
-
-    def kill_atb_bar(self):
-        pass
-
-    def close(self):
-        pass
-
-
-def autoCreateCapture(src,size=(640,480),fps=30,special_id = 0):
+def autoCreateCapture(src,size=(640,480),fps=30,timestamps=None,timebase = None):
     # checking src and handling all cases:
     src_type = type(src)
 
@@ -109,43 +58,58 @@ def autoCreateCapture(src,size=(640,480),fps=30,special_id = 0):
                 matching_devices.append(device)
 
         if len(matching_devices) >1:
-            print "Found",len(matching_devices),"devices that match any of %s. Using the %s one." %(src,('first','second','third')[special_id])
-        elif len(matching_devices) ==0:
-            print "ERROR: No device found that matched",src,
-            return
-        else:
-            #found just one
-            if special_id:
-                print "ERROR: Did not find %i devices that match %s" %(special_id+1,src)
-                return
+            logger.warning('Found %s as devices that match the src string pattern Using the first one.'%[d.name for d in matching_devices] )
+        if len(matching_devices) ==0:
+            logger.error('No device found that matched %s'%src)
+            return FakeCapture(size,fps,timebase=timebase)
 
-        cap = Camera_Capture(matching_devices[special_id],size,fps)
-        print "camera selected: %s  with id: %s" %(cap.name,cap.src_id)
+
+        cap = Camera_Capture(matching_devices[0],filter_sizes(matching_devices[0],size),fps,timebase)
+        logger.info("Camera selected: %s  with id: %s" %(cap.name,cap.src_id))
         return cap
 
     #looking for attached cameras that match cv_id
     elif src_type is int:
         for device in Camera_List():
             if device.src_id == src:
-                cap = Camera_Capture(device,size,fps)
-                print "camera selected: %s  with id: %s" %(cap.name,cap.src_id)
+                cap = Camera_Capture(device,filter_sizes(device,size),fps,timebase)
+                logger.info("Camera selected: %s  with id: %s" %(cap.name,cap.src_id))
                 return cap
 
-        #control not supported: trying capture without uvc controls
-        cap = Camera_Capture(src,size,fps)
-        print "WARNING: no UVC support: Using camera with id: %s" %(src)
+        #control not supported for windows: init capture without uvc controls
+        cap = Camera_Capture(src,size,fps,timebase)
+        logger.warning('No UVC support: Using camera with id: %s'%src)
         return cap
 
 
     #looking for videofiles
     elif src_type is str:
         if not isfile(src):
-            raise Exception(("autoCreateCapture: Could not locate VideoFile:", src))
-        print "Using video file as source ",src
-        return FileCapture(src)
+            logger.error('Could not locate VideoFile %s'%src)
+            raise FileCaptureError('Could not locate VideoFile %s'%src)
+        logger.info("Using %s as video source"%src)
+        return File_Capture(src,timestamps=timestamps)
     else:
-        raise Exception("autoCreateCapture: Could not create capture, wrong src_type")
+        logger.error("autoCreateCapture: Could not create capture, wrong src_type")
+        return FakeCapture(size,fps,timebase=timebase)
+
+
+def filter_sizes(cam,size):
+    #here we can force some defaulit formats
+
+    if "Integrated Camera" in cam.name:
+        if size[0] == 640:
+            logger.info("Lenovo Integrated camera selected. Forcing format to 640,480")
+            return 640,480
+        elif size[0] == 320:
+            logger.info("Lenovo Integrated camera selected. Forcing format to 320,240")
+            return 320,240
+
+    return size
 
 
 if __name__ == '__main__':
-    pass
+    cap = autoCreateCapture(1,(1280,720),30)
+    if cap:
+        print cap.controls
+    print "done"
