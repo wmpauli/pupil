@@ -22,7 +22,7 @@ from uvc_capture import autoCreateCapture, FileCaptureError, EndofVideoFileError
 from calibrate import get_map_from_cloud
 from pupil_detectors import Canny_Detector,MSER_Detector,Blob_Detector
 
-def eye(g_pool,cap_src,cap_size):
+def eye(g_pool,cap_src,cap_size,eye_id=0):
     """
     Creates a window, gl context.
     Grabs images from a capture.
@@ -191,7 +191,7 @@ def eye(g_pool,cap_src,cap_size):
     glfwSetCursorPosCallback(window,on_pos)
     glfwSetScrollCallback(window,on_scroll)
 
-    glfwSetWindowPos(window,800,0)
+    glfwSetWindowPos(window,800,0+eye_id*height+60)
     on_resize(window,width,height)
 
     # gl_state settings
@@ -242,6 +242,7 @@ def eye(g_pool,cap_src,cap_size):
 
         # pupil ellipse detection
         result = pupil_detector.detect(frame,user_roi=u_r,visualize=bar.display.value == 2)
+        result['eye_id'] = eye_id
         # stream the result
         g_pool.pupil_queue.put(result)
 

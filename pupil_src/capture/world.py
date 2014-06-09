@@ -138,7 +138,7 @@ def world(g_pool,cap_src,cap_size):
             """ 1 to 1 mapping """
             return vector
 
-       
+
     # any object we attach to the g_pool object *from now on* will only be visible to this process!
     # vars should be declared here to make them visible to the code reader.
     g_pool.plugins = []

@@ -93,16 +93,17 @@ else:
 
 def main():
     # To assign camera by name: put string(s) in list
-    eye_src = ["Microsoft", "6000","Integrated Camera"]
     world_src = ["Logitech Camera","(046d:081d)","C510","B525", "C525","C615","C920","C930e"]
-
+    # world_src = ["Nothing"]
     # to assign cameras directly, using integers as demonstrated below
-    # eye_src = 1
+    eye0_src = 1
+    eye1_src = 2
     # world_src = 0
 
     # to use a pre-recorded video.
     # Use a string to specify the path to your video file as demonstrated below
-    # eye_src = '/Users/mkassner/Pupil/datasets/p1-left/frames/test.avi'
+    # eye0_src = '/Users/mkassner/Desktop/001/eye.avi'
+    # eye1_src = '/Users/mkassner/Desktop/001/eye.avi'
     # world_src = "/Users/mkassner/Desktop/2014_01_21/000/world.avi"
 
     # Camera video size in pixels (width,height)
@@ -126,10 +127,12 @@ def main():
     g_pool.version = version
     g_pool.app = 'capture'
     # set up subprocesses
-    p_eye = Process(target=eye, args=(g_pool,eye_src,eye_size))
+    p_eye0 = Process(target=eye, args=(g_pool,eye0_src,eye_size,0))
+    p_eye1 = Process(target=eye, args=(g_pool,eye1_src,eye_size,1))
 
     # Spawn subprocess:
-    p_eye.start()
+    p_eye0.start()
+    p_eye1.start()
     if platform.system() == 'Linux':
         # We need to give the camera driver some time before requesting another camera.
         sleep(0.5)
@@ -137,7 +140,8 @@ def main():
     world(g_pool,world_src,world_size)
 
     # Exit / clean-up
-    p_eye.join()
+    p_eye0.join()
+    p_eye1.join()
 
 if __name__ == '__main__':
     freeze_support()
