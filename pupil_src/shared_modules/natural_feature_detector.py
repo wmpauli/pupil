@@ -11,8 +11,7 @@
 import sys, os,platform
 import cv2
 import numpy as np
-# from file_methods import Persistent_Dict
-from player_methods import transparent_circle
+from file_methods import Persistent_Dict
 from gl_utils import draw_gl_points
 
 from methods import normalize,denormalize
@@ -31,15 +30,14 @@ logger = logging.getLogger(__name__)
 class Natural_Feature_Detector(Plugin):
     """docstring
     """
-    def __init__(self,g_pool=None,radius=20,color=(1.,.2,.4,.2),thickness=2,atb_pos=(320,220)):
+    def __init__(self,g_pool=None,size=2,color=(0.,1.0,0.5,.5),atb_pos=(320,200)):
         super(Natural_Feature_Detector, self).__init__()
         self.g_pool = g_pool
         self.order = .2
 
         self.atb_pos = atb_pos
-        self.radius = c_int(int(radius))
+        self.size = c_int(int(size))
         self.color = (c_float*4)(*color)
-        self.thickness = c_int(int(thickness))
 
         # for comparison on speed vs. robustness see:
         # http://computer-vision-talks.com/articles/2011-01-04-comparison-of-the-opencv-feature-detection-algorithms/
@@ -73,10 +71,9 @@ class Natural_Feature_Detector(Plugin):
         atb_label = "natural feature detector"
         self._bar = atb.Bar(name =self.__class__.__name__, label=atb_label,
             help="natural feature detector parameters", color=(50, 150, 50), alpha=100,
-            text='light', position=pos,refresh=.3, size=(300, 300))
+            text='light', position=pos,refresh=.3, size=(300, 150))
 
         self._bar.add_var('color',self.color)
-        self._bar.add_var('radius',self.radius, min=1)
         self._bar.add_button('remove',self.unset_alive)    
 
     def unset_alive(self):
@@ -91,11 +88,6 @@ class Natural_Feature_Detector(Plugin):
 
 
     def update(self,frame,recent_pupil_positions,events):
-        color = map(lambda x:int(x*255),self.color)
-        color = color[:3][::-1]+color[-1:]
-        thickness = self.thickness.value
-        radius = self.radius.value
-
         # kp, descrs = self.detect_features(frame.img)
         kp = self.detector.detect(frame.img, None)
         self.kp, des = self.extractor.compute(frame.img, kp)        
@@ -109,7 +101,9 @@ class Natural_Feature_Detector(Plugin):
         """
         Display marker and surface info inside world screen
         """
-        draw_gl_points([k.pt for k in self.kp], size=2,color=(0.,1.0,0.5,.5))
+        size = self.size.value
+        color = self.color[::]
+        draw_gl_points([k.pt for k in self.kp],size=size,color=color)
 
 
 
