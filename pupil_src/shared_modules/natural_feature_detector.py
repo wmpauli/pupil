@@ -70,9 +70,9 @@ class Natural_Feature_Detector(Plugin):
         # direct access to a specific package
         # - cv2.FastFeatureDetector()
 
-        # self.detector = cv2.ORB( nfeatures = 500 )
-        self.detector = cv2.FeatureDetector_create("FAST")
-        self.extractor = cv2.DescriptorExtractor_create("FREAK")
+        self.detector = cv2.ORB( nfeatures = 500 )
+        # self.detector = cv2.FeatureDetector_create("FAST")
+        # self.extractor = cv2.DescriptorExtractor_create("FREAK")
         # self.detector = cv2.FastFeatureDetector(threshold=200)
 
         # setup the matcher
@@ -86,8 +86,9 @@ class Natural_Feature_Detector(Plugin):
 
     def add_reference_surface(self, file_name):
         img = cv2.imread(os.path.join(self.g_pool.rec_dir, file_name))
-        k = self.detector.detect(img, None)
-        key_points, descriptors = self.extractor.compute(img, k)
+        key_points, descriptors = self.detect_features(img)
+        # k = self.detector.detect(img, None)
+        # key_points, descriptors = self.extractor.compute(img, k)
         
         print "number of kp in ref: ", len(key_points)
         self.matcher.add([descriptors])
@@ -119,7 +120,7 @@ class Natural_Feature_Detector(Plugin):
                 continue
             ref = self.reference_surfaces[imgIdx]
             p0 = [ref.keypoints[m.trainIdx].pt for m in matches]
-            p1 = [self.frame_kps[m.queryIdx].pt for m in matches]
+            p1 = [self.frame_kp[m.queryIdx].pt for m in matches]
             p0, p1 = np.float32((p0, p1))
             H, status = cv2.findHomography(p0, p1, cv2.RANSAC, 3.0)
             status = status.ravel() != 0
@@ -157,13 +158,13 @@ class Natural_Feature_Detector(Plugin):
 
     def update(self,frame,recent_pupil_positions,events):
         # detect the features and extract descriptors per frame
-        # kp, descrs = self.detect_features(frame.img)
-        frame_kp = self.detector.detect(frame.img, None)
-        print "number of kp in frame: ", len(frame_kp)
-        if len(frame_kp) < MIN_MATCH_COUNT: 
+        self.frame_kp, self.frame_descrs = self.detect_features(frame.img)
+        # frame_kp = self.detector.detect(frame.img, None)
+        print "number of kp in frame: ", len(self.frame_kp)
+        if len(self.frame_kp) < MIN_MATCH_COUNT: 
             return
 
-        self.frame_kps, self.frame_descrs = self.extractor.compute(frame.img, frame_kp)        
+        # self.frame_kps, self.frame_descrs = self.extractor.compute(frame.img, frame_kp)        
 
         self.tracked = self.match()
 
@@ -177,7 +178,7 @@ class Natural_Feature_Detector(Plugin):
         color = self.color[::]
         pts = [ref.p1 for ref in self.tracked]
 
-        draw_gl_points(pts,size=10,color=color)
+        draw_gl_points(pts[0],size=10,color=color)
 
 
 
