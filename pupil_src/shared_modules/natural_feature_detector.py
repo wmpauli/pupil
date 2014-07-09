@@ -177,8 +177,8 @@ class Natural_Feature_Detector(Plugin):
         size = self.size.value
         color = self.color[::]
         pts = [ref.p1 for ref in self.tracked]
-
-        draw_gl_points(pts[0],size=10,color=color)
+        if pts:
+            draw_gl_points(pts[0],size=10,color=color)
 
 
 
