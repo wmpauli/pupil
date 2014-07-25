@@ -69,38 +69,91 @@ class Natural_Feature_Detector(Plugin):
         #       - SIFT, SURF, BRIEF, ORB, FREAK
         # direct access to a specific package
         # - cv2.FastFeatureDetector()
+        
+        self.detector_extractor_modules = {"ORB": cv2.ORB(), "SURF": cv2.SURF(), "SIFT": cv2.SIFT(), "BRISK": cv2.BRISK()}
 
-        self.detector = cv2.ORB( nfeatures = 500 )
+        self.detector_modules = ["FAST", "STAR", "SIFT", "SURF", "ORB", "BRISK", "MSER", "GFTT", "HARRIS", "SIMPLEBLOB"]
+        self.extractor_modules = ["SIFT", "SURF", "BRIEF", "ORB", "FREAK"]
+
+
+        # self.detector = detector_framework("compound", detector_name="ORB")
+
         # self.detector = cv2.FeatureDetector_create("FAST")
         # self.extractor = cv2.DescriptorExtractor_create("FREAK")
         # self.detector = cv2.FastFeatureDetector(threshold=200)
 
         # setup the matcher
-        self.matcher = cv2.FlannBasedMatcher(flann_params, {})  # bug : need to pass empty dict (#1329)
+        # self.matcher = cv2.FlannBasedMatcher(flann_params, {})  # bug : need to pass empty dict (#1329)
+        self.matcher = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
 
         # features detected 
         self.reference_surfaces = []
-        self.add_reference_surface("test_003.png")
+        self.add_reference_surface("test_img_001b.jpg")
 
         self.tracked = []
 
+    def detect_features(self, frame, detector_extractor="ORB", detector=None, extractor=None):
+        '''detect features with different opencv calls'''
+        if detector_extractor:
+            detector = self.detector_extractor_modules[detector_extractor]
+            keypoints, descriptors = detector.detectAndCompute(frame, None)
+
+        if detector and extractor:
+            detector = cv2.FeatureDetector_create(detector)
+            extractor = cv2.DescriptorExtractor_create(extractor)
+            keypoints = detector.detect(frame, None)
+            keypoints, descriptors = extractor.compute(frame, keypoints)
+
+        if descriptors is None:  # detectAndCompute returns descs=None if not keypoints found
+            descriptors = []
+        return keypoints, descriptors
+
+
     def add_reference_surface(self, file_name):
         img = cv2.imread(os.path.join(self.g_pool.rec_dir, file_name))
-        key_points, descriptors = self.detect_features(img)
-        # k = self.detector.detect(img, None)
-        # key_points, descriptors = self.extractor.compute(img, k)
+        keypoints, descriptors = self.detect_features(img)
         
-        print "number of kp in ref: ", len(key_points)
-        self.matcher.add([descriptors])
+        print "number of kp in ref: ", len(keypoints)
+        # self.matcher.add([descriptors])
 
-        ref_surface = ReferenceSurface(image=img, keypoints=key_points, descrs=descriptors, data=None)
+        ref_surface = ReferenceSurface(image=img, keypoints=keypoints, descrs=descriptors, data=None)
         self.reference_surfaces.append(ref_surface)
 
 
-    def match(self):
+    def bf_match(self):
 
         # find match between ref and current frame
-        matches = self.matcher.knnMatch(self.frame_descrs, k=2)
+        # matches = self.matcher.knnMatch(self.frame_descrs, k=2)
+        matches = self.matcher.match(self.frame_descrs, self.reference_surfaces[0].descrs)
+        # matches = [m[0] for m in matches if len(m) == 2 and m[0].distance < m[1].distance * 0.75]
+        print matches[0].distance
+
+        matches_by_id = [[] for _ in xrange(len(self.reference_surfaces))]
+        for m in matches:
+            print m.distance
+            matches_by_id[m.imgIdx].append(m)
+
+        tracked = []
+        for imgIdx, matches in enumerate(matches_by_id):
+            if len(matches) < MIN_MATCH_COUNT:
+                print "early exit 1"
+                continue
+            ref = self.reference_surfaces[imgIdx]
+            p0 = [ref.keypoints[m.trainIdx].pt for m in matches]
+            p1 = [self.frame_kp[m.queryIdx].pt for m in matches]
+            p0, p1 = np.float32((p0, p1))
+
+
+            track = TrackedReference(reference=ref, p0=p0, p1=p1, H=None, quad=None)
+            tracked.append(track)
+        return tracked
+
+    def knn_match(self):
+
+        # find match between ref and current frame
+        # matches = self.matcher.knnMatch(self.frame_descrs, k=2)
+        matches = self.matcher.match(self.frame_descrs)
+
 
         matches = [m[0] for m in matches if len(m) == 2 and m[0].distance < m[1].distance * 0.75]
         if len(matches) < MIN_MATCH_COUNT:
@@ -148,13 +201,6 @@ class Natural_Feature_Detector(Plugin):
     def unset_alive(self):
         self.alive = False
 
-    def detect_features(self, frame):
-        '''detect_features(self, frame) -> keypoints, descrs'''
-        keypoints, descrs = self.detector.detectAndCompute(frame, None)
-        if descrs is None:  # detectAndCompute returns descs=None if not keypoints found
-            descrs = []
-        return keypoints, descrs
-
 
     def update(self,frame,recent_pupil_positions,events):
         # detect the features and extract descriptors per frame
@@ -166,7 +212,7 @@ class Natural_Feature_Detector(Plugin):
 
         # self.frame_kps, self.frame_descrs = self.extractor.compute(frame.img, frame_kp)        
 
-        self.tracked = self.match()
+        self.tracked = self.bf_match()
 
 
 
