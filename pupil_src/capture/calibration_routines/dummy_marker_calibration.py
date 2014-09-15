@@ -18,6 +18,7 @@ from glfw import *
 from OpenGL.GLU import gluOrtho2D
 import calibrate
 from circle_detector import get_canditate_ellipses
+import time
 
 from ctypes import c_int,c_bool
 import atb
@@ -30,17 +31,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def draw_circle(pos,r,c):
-    pts = cv2.ellipse2Poly(tuple(pos),(r,r),0,0,360,10)
-    draw_gl_polyline(pts,c,'Polygon')
 
-def draw_marker(pos):
-    pos = int(pos[0]),int(pos[1])
-    black = (0.,0.,0.,1.)
-    white = (1.,1.,1.,1.)
-    for r,c in zip((50,40,30,20,10),(black,white,black,white,black)):
-        draw_circle(pos,r,c)
-
+class Frame(object):
+    """docstring for Frame"""
+    def __init__(self, timestamp, img, compressed_img=None, compressed_pix_fmt=None):
+        self.timestamp = timestamp
+        self.img = img
+        self.compressed_img = compressed_img
+        self.compressed_pix_fmt = compressed_pix_fmt
 
 # window calbacks
 def on_resize(window,w, h):
@@ -50,7 +48,7 @@ def on_resize(window,w, h):
     glfwMakeContextCurrent(active_window)
 
 
-class Screen_Marker_Calibration(Plugin):
+class Dummy_Marker_Calibration(Plugin):
     """Calibrate using a marker on your screen
     We use a ring detector that moves across the screen to 9 sites
     Points are collected at sites not between
@@ -86,8 +84,8 @@ class Screen_Marker_Calibration(Plugin):
         self.monitor_names = [glfwGetMonitorName(m) for m in monitor_handles]
         monitor_enum = atb.enum("Monitor",dict(((key,val) for val,key in enumerate(self.monitor_names))))
         #primary_monitor = glfwGetPrimaryMonitor()
-
-
+        self.frame = None
+        self.timebase = 0
 
         atb_label = "calibrate on screen"
         # Creating an ATB Bar is required. Show at least some info about the Ref_Detector
@@ -169,7 +167,7 @@ class Screen_Marker_Calibration(Plugin):
         self.screen_marker_state = 0
         self.active = False
         self.window_should_close = True
-
+        
         cal_pt_cloud = calibrate.preprocess_data(self.pupil_list,self.ref_list)
 
         logger.info("Collected %s data points." %len(cal_pt_cloud))
@@ -198,12 +196,16 @@ class Screen_Marker_Calibration(Plugin):
             self.open_window()
 
         if self.active:
+            if self.frame != None:
+                frame = self.frame
+
             img = frame.img
+
+            gray_img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
 
             #get world image size for error fitting later.
             if self.world_size is None:
                 self.world_size = img.shape[1],img.shape[0]
-            print img.shape
 
             #detect the marker
             self.candidate_ellipses = get_canditate_ellipses(img,
@@ -213,7 +215,6 @@ class Screen_Marker_Calibration(Plugin):
                                                             visual_debug=self.show_edges.value)
 
             if len(self.candidate_ellipses) > 0:
-                print "detected"
                 self.detected= True
                 marker_pos = self.candidate_ellipses[0][0]
                 self.pos = normalize(marker_pos,(img.shape[1],img.shape[0]),flip_y=True)
@@ -228,12 +229,14 @@ class Screen_Marker_Calibration(Plugin):
             if on_position and self.detected:
                 ref = {}
                 ref["norm_pos"] = self.pos
-                ref["timestamp"] = frame.timestamp
+                ref["timestamp"] = frame.timestamp - self.timebase
                 self.ref_list.append(ref)
 
             #always save pupil positions
             for p_pt in recent_pupil_positions:
                 if p_pt['norm_pupil'] is not None:
+                    if self.timebase == 0:
+                        self.timebase = time.time() - p_pt['timestamp'] # dirty hack, because can't align timestamps otherwise
                     self.pupil_list.append(p_pt)
 
             # Animate the screen marker
@@ -316,8 +319,8 @@ class Screen_Marker_Calibration(Plugin):
         gl.glLoadIdentity()
 
         screen_pos = denormalize(self.display_pos,p_window_size,flip_y=True)
-
-        draw_marker(screen_pos)
+       
+        self.draw_marker(screen_pos)
         #some feedback on the detection state
 
         if self.detected and self.on_position:
@@ -338,3 +341,33 @@ class Screen_Marker_Calibration(Plugin):
         if self._window:
             self.close_window()
         self._bar.destroy()
+
+
+    def draw_circle(self, frame, pos,r,c):
+        ''' function that is called by draw_marker exclusively ''' 
+        pts = cv2.ellipse2Poly(tuple(pos),(r,r),0,0,360,10)
+        draw_gl_polyline(pts,c,'Polygon')
+        world_size =  self.world_size
+        window_size = glfwGetWindowSize(self._window)
+        ratio = [float(world_size[0])/window_size[0], float(world_size[1])/window_size[1]]
+        pos_0 = ratio[0] * pos[0] * .75 + world_size[0] * (1 - .75)/2
+        pos_1 = ratio[1] * pos[1] * .75 + world_size[1] * (1 - .75)/2
+        pos_1 = int(pos_0), int(pos_1)
+        c = cv2.cv.CV_RGB(c[0]*255, c[1]*255, c[2]*255)
+        cv2.ellipse(frame, tuple(pos_1),(r,r),0,0,360, c)
+
+
+    def draw_marker(self, pos):
+        ''' draws a marker on the screen for people to look at, and at the same time
+        also puts a marker on the fake world display ''' 
+
+        pos = int(pos[0]),int(pos[1])
+        black = (0.,0.,0.,1.)
+        white = (1.,1.,1.,1.)
+        frame = np.ones([480,640,3]) * 140
+        for r,c in zip((50,40,30,20,10),(black,white,black,white,black)):
+            self.draw_circle(frame, pos,r,c)
+            
+        self.frame = Frame(time.time(), cv2.cvtColor(np.uint8(frame), cv2.COLOR_RGB2BGR))
+
+

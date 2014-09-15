@@ -35,8 +35,11 @@ logger = logging.getLogger(__name__)
 
 
 ###OS specific imports and defs
-if os_name == "Linux":
-    from linux_video import Camera_Capture,Camera_List,CameraCaptureError
+if os.system('pgrep %s > /dev/null' % 'ueyeusbd') == 0: # we are using thorlabs camera, or similar
+    logger.warning('I am assuming you want to use the thorlabs camera!')
+    from pydcu import Camera_Capture, Camera_List, CameraCaptureError
+elif os_name == "Linux":
+    from linux_video import Camera_Capture, Camera_List, CameraCaptureError
 elif os_name == "Darwin":
     from mac_video import Camera_Capture,Camera_List,CameraCaptureError
 else:
@@ -53,17 +56,20 @@ def autoCreateCapture(src,size=(640,480),fps=30,timestamps=None,timebase = None)
     #looking for attached cameras that match the suggested names
     if src_type is list:
         matching_devices = []
-        for device in Camera_List():
+        for device in Camera_List(): # todo
+            print "Device name: " + str(device.name)
             if any([s in device.name for s in src]):
                 matching_devices.append(device)
 
         if len(matching_devices) >1:
             logger.warning('Found %s as devices that match the src string pattern Using the first one.'%[d.name for d in matching_devices] )
-        if len(matching_devices) ==0:
+        elif len(matching_devices) == 0:
             logger.error('No device found that matched %s'%src)
             return FakeCapture(size,fps,timebase=timebase)
 
 
+
+        # todo
         cap = Camera_Capture(matching_devices[0],filter_sizes(matching_devices[0],size),fps,timebase)
         logger.info("Camera selected: %s  with id: %s" %(cap.name,cap.src_id))
         return cap

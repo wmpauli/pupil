@@ -22,8 +22,8 @@ else:
     forking_enable = lambda x: x #dummy fn
     from multiprocessing.sharedctypes import Value
 
-from itertools import chain
-from gl_utils import *
+
+from gl_utils import draw_gl_polyline,adjust_gl_view,draw_gl_polyline_norm,clear_gl_screen,draw_gl_point,draw_gl_points,draw_gl_point_norm,draw_gl_points_norm,basic_gl_setup,cvmat_to_glmat, draw_named_texture
 from OpenGL.GL import *
 from OpenGL.GLU import gluOrtho2D
 from methods import normalize,denormalize
@@ -58,7 +58,7 @@ class Offline_Marker_Detector(Plugin):
         self.g_pool = g_pool
         self.gui_settings = gui_settings
         self.order = .2
-
+        
 
         # all markers that are detected in the most recent frame
         self.markers = []
@@ -78,10 +78,8 @@ class Offline_Marker_Detector(Plugin):
             logger.debug("No surface defs found. Please define using GUI.")
             self.surfaces = []
 
-
-        # ui mode settings
-        self.mode = c_int(0)
         # edit surfaces
+        self.surface_edit_mode = c_bool(0)
         self.edit_surfaces = []
 
         #detector vars
@@ -96,6 +94,7 @@ class Offline_Marker_Detector(Plugin):
         self.init_marker_cacher()
 
         #debug vars
+        self.draw_markers = c_bool(0)
         self.show_surface_idx = c_int(0)
         self.recent_pupil_positions = []
 
@@ -130,7 +129,7 @@ class Offline_Marker_Detector(Plugin):
 
 
     def on_click(self,pos,button,action):
-        if self.mode.value == 1:
+        if self.surface_edit_mode.value:
             if self.edit_surfaces:
                 if action == GLFW_RELEASE:
                     self.edit_surfaces = []
@@ -161,60 +160,18 @@ class Offline_Marker_Detector(Plugin):
     def update_bar_markers(self):
         self._bar.clear()
         self._bar.add_button('close',self.unset_alive)
+        self._bar.add_var("draw markers",self.draw_markers)
         self._bar.add_button("  add surface   ", self.add_surface, key='a')
-        # when cache is updated, when surface is edited, when trimmarks are changed.
-        # dropdown menue: markers and surface, surface edit mode, heatmaps, metrics
-        self._bar.mode_enum = atb.enum("Mode",{"Show Markers and Frames":0,"Show Marker Id's":4, "Surface edit mode":1,"Show Heatmaps":2,"Show Metrics":3})
-        self._bar.add_var("Mode",self.mode,vtype=self._bar.mode_enum)
-        self._bar.add_button("  (re)-calculate gaze distributions   ", self.recalculate)
-        self._bar.add_button("   Export Gaze and Surface Data   ", self.save_surface_statsics_to_file)
-
+        self._bar.add_var("  edit mode   ", self.surface_edit_mode )
         for s,i in zip(self.surfaces,range(len(self.surfaces)))[::-1]:
             self._bar.add_var("%s_name"%i,create_string_buffer(512),getter=s.atb_get_name,setter=s.atb_set_name,group=str(i),label='name')
             self._bar.add_var("%s_markers"%i,create_string_buffer(512), getter=s.atb_marker_status,group=str(i),label='found/registered markers' )
             self._bar.add_var("%s_x_scale"%i,vtype=c_float, getter=s.atb_get_scale_x, min=1,setter=s.atb_set_scale_x,group=str(i),label='real width', help='this scale factor is used to adjust the coordinate space for your needs (think photo pixels or mm or whatever)' )
             self._bar.add_var("%s_y_scale"%i,vtype=c_float, getter=s.atb_get_scale_y,min=1,setter=s.atb_set_scale_y,group=str(i),label='real height',help='defining x and y scale factor you atumatically set the correct aspect ratio.' )
             self._bar.add_var("%s_window"%i,setter=s.toggle_window,getter=s.window_open,group=str(i),label='open in window')
-            # self._bar.add_button("%s_hm"%i, s.generate_heatmap, label='generate_heatmap',group=str(i))
-            # self._bar.add_button("%s_export"%i, self.save_surface_positions_to_file,data=i, label='export surface data',group=str(i))
+            self._bar.add_button("%s_hm"%i, s.generate_heatmap, label='generate_heatmap',group=str(i))
+            self._bar.add_button("%s_export"%i, self.save_surface_positions_to_file,data=i, label='export surface data',group=str(i))
             self._bar.add_button("%s_remove"%i, self.remove_surface,data=i,label='remove',group=str(i))
-
-
-    def recalculate(self):
-
-        in_mark = self.g_pool.trim_marks.in_mark
-        out_mark = self.g_pool.trim_marks.out_mark
-        section = slice(in_mark,out_mark)
-
-        # calc heatmaps
-        for s in self.surfaces:
-            if s.defined:
-                s.generate_heatmap(section)
-
-        # calc metrics:
-        gaze_in_section = list(chain(*self.g_pool.positions_by_frame[section]))
-        results = []
-        for s in self.surfaces:
-            gaze_on_srf  = s.gaze_on_srf_in_section(section)
-            results.append(len(gaze_on_srf))
-            self.metrics_gazecount = len(gaze_on_srf)
-
-        max_res = max(results)
-        results = np.array(results,dtype=np.float32)
-        if not max_res:
-            logger.warning("No gaze on any surface for this section!")
-        else:
-            results *= 255./max_res
-        results = np.uint8(results)
-        results_c_maps = cv2.applyColorMap(results, cv2.COLORMAP_JET)
-
-        for s,c_map in zip(self.surfaces,results_c_maps):
-            heatmap = np.ones((1,1,4),dtype=np.uint8)*125
-            heatmap[:,:,:3] = c_map
-            s.metrics_texture = create_named_texture(heatmap)
-
-
-
 
     def update(self,frame,recent_pupil_positions,events):
         self.img = frame.img
@@ -222,9 +179,10 @@ class Offline_Marker_Detector(Plugin):
         self.update_marker_cache()
         self.markers = self.cache[frame.index]
         if self.markers == False:
+            # locate markers because precacher has not anayzed this frame yet. Most likely a seek event
             self.markers = []
-            self.seek_marker_cacher(frame.index) # tell precacher that it better have every thing from here on analyzed
-
+            self.seek_marker_cacher(frame.index) # tell precacher that it better have every thing from here analyzed
+       
         # locate surfaces
         for s in self.surfaces:
             if not s.locate_from_cache(frame.index):
@@ -232,11 +190,11 @@ class Offline_Marker_Detector(Plugin):
             if s.detected:
                 events.append({'type':'marker_ref_surface','name':s.name,'uid':s.uid,'m_to_screen':s.m_to_screen,'m_from_screen':s.m_from_screen, 'timestamp':frame.timestamp,'gaze_on_srf':s.gaze_on_srf})
 
-        if self.mode.value == 4:
+        if self.draw_markers.value:
             draw_markers(frame.img,self.markers)
 
         # edit surfaces by user
-        if self.mode.value == 1:
+        if self.surface_edit_mode:
             window = glfwGetCurrentContext()
             pos = glfwGetCursorPos(window)
             pos = normalize(pos,glfwGetWindowSize(window))
@@ -248,7 +206,6 @@ class Offline_Marker_Detector(Plugin):
                     new_pos =  s.img_to_ref_surface(np.array(pos))
                     s.move_vertex(v_idx,new_pos)
                     s.cache = None
-                    self.heatmap = None
         else:
             # update srf with no or invald cache:
             for s in self.surfaces:
@@ -262,6 +219,8 @@ class Offline_Marker_Detector(Plugin):
                 s.close_window()
             if s.window_should_open:
                 s.open_window()
+
+
 
 
     def init_marker_cacher(self):
@@ -295,37 +254,27 @@ class Offline_Marker_Detector(Plugin):
         Display marker and surface info inside world screen
         """
         self.gl_display_cache_bars()
+
+        for m in self.markers:
+            hat = np.array([[[0,0],[0,1],[.5,1.3],[1,1],[1,0],[0,0]]],dtype=np.float32)
+            hat = cv2.perspectiveTransform(hat,m_marker_to_screen(m))
+            draw_gl_polyline(hat.reshape((6,2)),(0.1,1.,1.,.5))
+
         for s in self.surfaces:
+            s.gl_draw_frame()
             s.gl_display_in_window(self.g_pool.image_tex)
 
-        if self.mode.value in (0,1):
-            for m in self.markers:
-                hat = np.array([[[0,0],[0,1],[1,1],[1,0],[0,0]]],dtype=np.float32)
-                hat = cv2.perspectiveTransform(hat,m_marker_to_screen(m))
-                draw_gl_polyline(hat.reshape((5,2)),(0.1,1.,1.,.3),type='Polygon')
-                draw_gl_polyline(hat.reshape((5,2)),(0.1,1.,1.,.6))
-
-            for s in self.surfaces:
-                s.gl_draw_frame()
-
-        if self.mode.value == 1:
+        if self.surface_edit_mode.value:
             for s in  self.surfaces:
                 s.gl_draw_corners()
-        if self.mode.value == 2:
-            for s in  self.surfaces:
-                s.gl_display_heatmap()
-        if self.mode.value == 3:
-            #draw a backdrop to represent the gaze that is not on any surface
-            for s in self.surfaces:
-                #draw a quad on surface with false color of value.
-                s.gl_display_metrics()
+
 
     def gl_display_cache_bars(self):
         """
         """
         padding = 20.
 
-       # Lines for areas that have been cached
+       # Lines for areas that have be cached
         cached_ranges = []
         for r in self.cache.visited_ranges: # [[0,1],[3,4]]
             cached_ranges += (r[0],0),(r[1],0) #[(0,0),(1,0),(3,0),(4,0)]
@@ -367,162 +316,77 @@ class Offline_Marker_Detector(Plugin):
         glPopMatrix()
 
 
-    def save_surface_statsics_to_file(self):
+    def save_surface_positions_to_file(self,i):
+        s = self.surfaces[i]
 
         in_mark = self.g_pool.trim_marks.in_mark
         out_mark = self.g_pool.trim_marks.out_mark
 
+        if s.cache == None:
+            logger.warning("The surface is not cached. Please wait for the cacher to collect data.")
+            return
 
-        """
-        between in and out mark
-
-            report: gaze distribution:
-                    - total gazepoints
-                    - gaze points on surface x
-                    - gaze points not on any surface
-
-            report: surface visisbility
-
-                - total frames
-                - surface x visible framecount
-
-            surface events:
-                frame_no, ts, surface "name", "id" enter/exit
-
-            for each surface:
-                gaze_on_name_id.csv
-                positions_of_name_id.csv
-
-        """
-        section = slice(in_mark,out_mark)
-
-
-        metrics_dir = os.path.join(self.g_pool.rec_dir,"metrics_%s-%s"%(in_mark,out_mark))
-        logger.info("exporting metrics to %s"%metrics_dir)
-        if os.path.isdir(metrics_dir):
-            logger.info("Will overwrite previous export for this section")
+        srf_dir = os.path.join(self.g_pool.rec_dir,'surface_data'+'_'+s.name.replace('/','')+'_'+s.uid)
+        logger.info("exporting surface gaze data to %s"%srf_dir)
+        if os.path.isdir(srf_dir):
+            logger.info("Will overwrite previous export for this referece surface")
         else:
             try:
-                os.mkdir(metrics_dir)
+                os.mkdir(srf_dir)
             except:
-                logger.warning("Could not make metrics dir %s"%metrics_dir)
+                logger.warning("Could name make export dir %s"%srf_dir)
                 return
 
+        #save surface_positions as pickle file
+        save_object(s.cache.to_list(),os.path.join(srf_dir,'srf_positons'))
 
-        with open(os.path.join(metrics_dir,'surface_visibility.csv'),'wb') as csvfile:
-            csv_writer = csv.writer(csvfile, delimiter='\t',quotechar='|', quoting=csv.QUOTE_MINIMAL)
-
-            # surface visibility report
-            frame_count = len(self.g_pool.timestamps[section])
-
-            csv_writer.writerow(('frame_count',frame_count))
-            csv_writer.writerow((''))
-            csv_writer.writerow(('surface_name','visible_frame_count'))
-            for s in self.surfaces:
-                if s.cache == None:
-                    logger.warning("The surface is not cached. Please wait for the cacher to collect data.")
-                    return
-                visible_count  = s.visible_count_in_section(section)
-                csv_writer.writerow( (s.name, visible_count) )
-            logger.info("Created 'surface_visibility.csv' file")
+        #save surface_positions as csv
+        with open(os.path.join(srf_dir,'srf_positons.csv'),'wb') as csvfile:
+            csw_writer =csv.writer(csvfile, delimiter='\t',quotechar='|', quoting=csv.QUOTE_MINIMAL)
+            csw_writer.writerow(('frame_idx','timestamp','m_to_screen','m_from_screen','detected_markers'))
+            for idx,ts,ref_srf_data in zip(range(len(self.g_pool.timestamps)),self.g_pool.timestamps,s.cache):
+                if in_mark <= idx <= out_mark:
+                    if ref_srf_data is not None and ref_srf_data is not False:
+                        csw_writer.writerow( (idx,ts,ref_srf_data['m_to_screen'],ref_srf_data['m_from_screen'],ref_srf_data['detected_markers']) )
 
 
-        with open(os.path.join(metrics_dir,'surface_gaze_distribution.csv'),'wb') as csvfile:
-            csv_writer = csv.writer(csvfile, delimiter='\t',quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        #save gaze on srf as csv.
+        with open(os.path.join(srf_dir,'gaze_positions_on_surface.csv'),'wb') as csvfile:
+            csw_writer = csv.writer(csvfile, delimiter='\t',quotechar='|', quoting=csv.QUOTE_MINIMAL)
+            csw_writer.writerow(('world_frame_idx','world_timestamp','eye_timestamp','x_norm','y_norm','x_scaled','y_scaled','on_srf'))
+            for idx,ts,ref_srf_data in zip(range(len(self.g_pool.timestamps)),self.g_pool.timestamps,s.cache):
+                if in_mark <= idx <= out_mark:
+                    if ref_srf_data is not None and ref_srf_data is not False:
+                        for gp in ref_srf_data['gaze_on_srf']:
+                            gp_x,gp_y = gp['norm_gaze_on_srf']
+                            on_srf = (0 <= gp_x <= 1) and (0 <= gp_y <= 1)
+                            csw_writer.writerow( (idx,ts,gp['timestamp'],gp_x,gp_y,gp_x*s.scale_factor[0],gp_x*s.scale_factor[1],on_srf) )
 
-            # gaze distribution report
-            gaze_in_section = list(chain(*self.g_pool.positions_by_frame[section]))
-            not_on_any_srf = set([gp['timestamp'] for gp in gaze_in_section])
+        logger.info("Saved surface positon data and gaze on surface data for '%s' with uid:'%s'"%(s.name,s.uid))
 
-            csv_writer.writerow(('total_gaze_point_count',len(gaze_in_section)))
-            csv_writer.writerow((''))
-            csv_writer.writerow(('surface_name','gaze_count'))
+        if s.heatmap is not None:
+            logger.info("Saved Heatmap as .png file.")
+            cv2.imwrite(os.path.join(srf_dir,'heatmap.png'),s.heatmap)
 
-            for s in self.surfaces:
-                gaze_on_srf  = s.gaze_on_srf_in_section(section)
-                gaze_on_srf = set([gp["timestamp"] for gp in gaze_on_srf])
-                not_on_any_srf -= gaze_on_srf
-                csv_writer.writerow( (s.name, len(gaze_on_srf)) )
+        if s.detected and self.img is not None:
+            #let save out the current surface image found in video
 
-            csv_writer.writerow(('not_on_any_surface', len(not_on_any_srf) ) )
-            logger.info("Created 'surface_gaze_distribution.csv' file")
+            #here we get the verts of the surface quad in norm_coords
+            mapped_space_one = np.array(((0,0),(1,0),(1,1),(0,1)),dtype=np.float32).reshape(-1,1,2)
+            screen_space = cv2.perspectiveTransform(mapped_space_one,s.m_to_screen).reshape(-1,2)
+            #now we convert to image pixel coods
+            screen_space[:,1] = 1-screen_space[:,1]
+            screen_space[:,1] *= self.img.shape[0]
+            screen_space[:,0] *= self.img.shape[1]
+            s_0,s_1 = s.scale_factor
+            #no we need to flip vertically again by setting the mapped_space verts accordingly.
+            mapped_space_scaled = np.array(((0,s_1),(s_0,s_1),(s_0,0),(0,0)),dtype=np.float32) 
+            M = cv2.getPerspectiveTransform(screen_space,mapped_space_scaled)
+            #here we do the actual perspactive transform of the image.
+            srf_in_video = cv2.warpPerspective(self.img,M, (int(s.scale_factor[0]),int(s.scale_factor[1])) ) 
+            cv2.imwrite(os.path.join(srf_dir,'surface.png'),srf_in_video)
+            logger.info("Saved current image as .png file.")
 
-
-
-        with open(os.path.join(metrics_dir,'surface_events.csv'),'wb') as csvfile:
-            csv_writer = csv.writer(csvfile, delimiter='\t',quotechar='|', quoting=csv.QUOTE_MINIMAL)
-
-            # surface events report
-            csv_writer.writerow(('frame_number','timestamp','surface_name','surface_uid','event_type'))
-
-            events = []
-            for s in self.surfaces:
-                for enter_frame_id,exit_frame_id in s.cache.positive_ranges:
-                    events.append({'frame_id':enter_frame_id,'srf_name':s.name,'srf_uid':s.uid,'event':'enter'})
-                    events.append({'frame_id':exit_frame_id,'srf_name':s.name,'srf_uid':s.uid,'event':'exit'})
-
-            events.sort(key=lambda x: x['frame_id'])
-            for e in events:
-                csv_writer.writerow( ( e['frame_id'],self.g_pool.timestamps[e['frame_id']],e['srf_name'],e['srf_uid'],e['event'] ) )
-            logger.info("Created 'surface_events.csv' file")
-
-
-        for s in self.surfaces:
-            # per surface names:
-            surface_name = '_'+s.name.replace('/','')+'_'+s.uid
-
-
-            # save surface_positions as pickle file
-            save_object(s.cache.to_list(),os.path.join(metrics_dir,'srf_positions'+surface_name))
-
-            #save surface_positions as csv
-            with open(os.path.join(metrics_dir,'srf_positons'+surface_name+'.csv'),'wb') as csvfile:
-                csv_writer =csv.writer(csvfile, delimiter='\t',quotechar='|', quoting=csv.QUOTE_MINIMAL)
-                csv_writer.writerow(('frame_idx','timestamp','m_to_screen','m_from_screen','detected_markers'))
-                for idx,ts,ref_srf_data in zip(range(len(self.g_pool.timestamps)),self.g_pool.timestamps,s.cache):
-                    if in_mark <= idx <= out_mark:
-                        if ref_srf_data is not None and ref_srf_data is not False:
-                            csv_writer.writerow( (idx,ts,ref_srf_data['m_to_screen'],ref_srf_data['m_from_screen'],ref_srf_data['detected_markers']) )
-
-
-            # save gaze on srf as csv.
-            with open(os.path.join(metrics_dir,'gaze_positions_on_surface'+surface_name+'.csv'),'wb') as csvfile:
-                csv_writer = csv.writer(csvfile, delimiter='\t',quotechar='|', quoting=csv.QUOTE_MINIMAL)
-                csv_writer.writerow(('world_frame_idx','world_timestamp','eye_timestamp','x_norm','y_norm','x_scaled','y_scaled','on_srf'))
-                for idx,ts,ref_srf_data in zip(range(len(self.g_pool.timestamps)),self.g_pool.timestamps,s.cache):
-                    if in_mark <= idx <= out_mark:
-                        if ref_srf_data is not None and ref_srf_data is not False:
-                            for gp in ref_srf_data['gaze_on_srf']:
-                                gp_x,gp_y = gp['norm_gaze_on_srf']
-                                on_srf = (0 <= gp_x <= 1) and (0 <= gp_y <= 1)
-                                csv_writer.writerow( (idx,ts,gp['timestamp'],gp_x,gp_y,gp_x*s.scale_factor[0],gp_x*s.scale_factor[1],on_srf) )
-
-            logger.info("Saved surface positon data and gaze on surface data for '%s' with uid:'%s'"%(s.name,s.uid))
-
-            if s.heatmap is not None:
-                logger.info("Saved Heatmap as .png file.")
-                cv2.imwrite(os.path.join(metrics_dir,'heatmap'+surface_name+'.png'),s.heatmap)
-
-            # if s.detected and self.img is not None:
-            #     #let save out the current surface image found in video
-
-            #     #here we get the verts of the surface quad in norm_coords
-            #     mapped_space_one = np.array(((0,0),(1,0),(1,1),(0,1)),dtype=np.float32).reshape(-1,1,2)
-            #     screen_space = cv2.perspectiveTransform(mapped_space_one,s.m_to_screen).reshape(-1,2)
-            #     #now we convert to image pixel coods
-            #     screen_space[:,1] = 1-screen_space[:,1]
-            #     screen_space[:,1] *= self.img.shape[0]
-            #     screen_space[:,0] *= self.img.shape[1]
-            #     s_0,s_1 = s.scale_factor
-            #     #no we need to flip vertically again by setting the mapped_space verts accordingly.
-            #     mapped_space_scaled = np.array(((0,s_1),(s_0,s_1),(s_0,0),(0,0)),dtype=np.float32)
-            #     M = cv2.getPerspectiveTransform(screen_space,mapped_space_scaled)
-            #     #here we do the actual perspactive transform of the image.
-            #     srf_in_video = cv2.warpPerspective(self.img,M, (int(s.scale_factor[0]),int(s.scale_factor[1])) )
-            #     cv2.imwrite(os.path.join(metrics_dir,'surface'+surface_name+'.png'),srf_in_video)
-            #     logger.info("Saved current image as .png file.")
-            # else:
-            #     logger.info("'%s' is not currently visible. Seek to appropriate frame and repeat this command."%s.name)
 
 
     def get_init_dict(self):
@@ -538,7 +402,7 @@ class Offline_Marker_Detector(Plugin):
         This happends either voluntary or forced.
         if you have an atb bar or glfw window destroy it here.
         """
-
+ 
         self.save("offline_square_marker_surfaces",[rs.save_to_dict() for rs in self.surfaces if rs.defined])
         self.close_marker_cacher()
         self.persistent_cache["marker_cache"] = self.cache.to_list()
@@ -549,4 +413,3 @@ class Offline_Marker_Detector(Plugin):
         for s in self.surfaces:
             s.close_window()
         self._bar.destroy()
-

@@ -33,7 +33,7 @@ class Camera_Capture(object):
         except KeyError:
             pass
         try:
-            # exposure_auto_priority == 1
+            # exposure_auto_priority == 1 
             # leads to reduced framerates under low light and corrupt timestamps.
             self.controls['exposure_auto_priority'].set_val(0)
         except KeyError:
@@ -43,7 +43,7 @@ class Camera_Capture(object):
 
         #give camera some time to change settings.
         sleep(0.3)
-        self.capture = VideoCapture(self.src_id,size,fps,timebase = self.timebase, use_hw_timestamps = self.use_hw_ts)
+        self.capture = VideoCapture(self.src_id,size,fps,timebase = self.timebase, use_hw_timestamps = self.use_hw_ts) # todo
         self.get_frame = self.capture.read
         self.get_now = self.capture.get_time_monotonic
 
@@ -52,7 +52,7 @@ class Camera_Capture(object):
     def check_hw_ts_support(self):
         # hw timestamping:
         # v4l2 supports Sart of Exposure hardware timestamping ofr UVC Capture devices
-        # these HW timestamps are excellent referece times and
+        # these HW timestamps are excellent referece times and 
         # prefferec over softwaretimestamp denoting the avaibleilt of frames to the user.
         # however not all uvc cameras report valid hw timestamps, notably microsoft hd-6000
         # becasue all used devices need to properly implement hw timestamping for it to be usefull

@@ -19,8 +19,10 @@ from manual_marker_calibration import Manual_Marker_Calibration
 from natural_features_calibration import Natural_Features_Calibration
 from camera_intrinsics_estimation import Camera_Intrinsics_Estimation
 from accuracy_test import Accuracy_Test
+from dummy_marker_calibration import Dummy_Marker_Calibration
 
-detector_by_index =  (   Screen_Marker_Calibration,
+detector_by_index =  (  Dummy_Marker_Calibration, 
+                        Screen_Marker_Calibration,
                         Manual_Marker_Calibration,
                         Natural_Features_Calibration,
                         Camera_Intrinsics_Estimation,

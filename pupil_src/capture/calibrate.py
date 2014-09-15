@@ -152,7 +152,7 @@ def preprocess_data(pupil_pts,ref_pts):
         matched = []
         while pupil_pts:
             #select all points past the half-way point between current and next ref data sample
-            if pupil_pts[0]['timestamp'] <=(cur_ref_pt['timestamp']+next_ref_pt['timestamp'])/2.:
+            if pupil_pts[0]['timestamp'] <= (cur_ref_pt['timestamp']+next_ref_pt['timestamp'])/2.:
                 matched.append(pupil_pts.pop(0))
             else:
                 for p_pt in matched:

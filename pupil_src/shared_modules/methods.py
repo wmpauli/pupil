@@ -54,14 +54,14 @@ class Roi(object):
         self.nX,self.nY = x,y
 
     def setEnd(self,(x,y)):
-            x,y = int(x),int(y)
-            x,y = max(0,x),max(0,y)
-            # make sure the ROI actually contains enough pixels
-            if abs(self.nX - x) > 25 and abs(self.nY - y)>25:
-                self.lX = min(x,self.nX)
-                self.lY = min(y,self.nY)
-                self.uX = max(x,self.nX)
-                self.uY = max(y,self.nY)
+        x,y = int(x),int(y)
+        x,y = max(0,x),max(0,y)
+        # make sure the ROI actually contains enough pixels
+        if abs(self.nX - x) > 25 and abs(self.nY - y)>25:
+            self.lX = min(x,self.nX)
+            self.lY = min(y,self.nY)
+            self.uX = max(x,self.nX)
+            self.uY = max(y,self.nY)
 
     def add_vector(self,(x,y)):
         """
@@ -76,6 +76,7 @@ class Roi(object):
         return (x-self.lX,y-self.lY)
 
     def set(self,vals):
+        #print vals
         if vals is not None and len(vals) is 5:
             if vals[-1] == self.array_shape:
                 self.lX,self.lY,self.uX,self.uY,_ = vals

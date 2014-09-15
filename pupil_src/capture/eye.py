@@ -80,6 +80,10 @@ def eye(g_pool,cap_src,cap_size):
                     bar.draw_roi.value = 1
             else:
                 bar.draw_roi.value = 0
+                # now also set the AOI for the camera
+                roi_tmp = u_r.get()
+                cap.capture.set_size(x = roi_tmp[0], y = roi_tmp[1], width=roi_tmp[2] - roi_tmp[0], height=roi_tmp[3] - roi_tmp[1])
+
 
     def on_pos(window,x, y):
         norm_pos = normalize((x,y),glfwGetWindowSize(window))

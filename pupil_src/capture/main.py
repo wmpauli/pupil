@@ -41,7 +41,6 @@ else:
     rec_dir = os.path.join(pupil_base_dir,'recordings')
     user_dir = os.path.join(pupil_base_dir,'settings')
 
-
 # create folder for user settings, tmp data and a recordings folder
 if not os.path.isdir(user_dir):
     os.mkdir(user_dir)
@@ -93,7 +92,7 @@ else:
 
 def main():
     # To assign camera by name: put string(s) in list
-    eye_src = ["Microsoft", "6000","Integrated Camera"]
+    eye_src = ["UI154xLE-M", "USB Camera-B4.09.24.1", "FaceTime Camera (Built-in)", "Microsoft", "6000","Integrated Camera"]
     world_src = ["Logitech Camera","(046d:081d)","C510","B525", "C525","C615","C920","C930e"]
 
     # to assign cameras directly, using integers as demonstrated below
@@ -106,8 +105,8 @@ def main():
     # world_src = "/Users/mkassner/Desktop/2014_01_21/000/world.avi"
 
     # Camera video size in pixels (width,height)
-    eye_size = (640,360)
-    world_size = (1280,720)
+    eye_size = (1280,1024)
+    world_size = (640,480)
 
 
     # on MacOS we will not use os.fork, elsewhere this does nothing.
