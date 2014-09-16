@@ -28,6 +28,7 @@ from c_methods import eye_filter
 from glfw import *
 from gl_utils import  draw_gl_texture,adjust_gl_view, clear_gl_screen, draw_gl_point_norm, draw_gl_polyline,basic_gl_setup,make_coord_system_norm_based,make_coord_system_pixel_based
 from template import Pupil_Detector
+from pupil_detectors import preproc
 
 
 import logging
@@ -114,6 +115,11 @@ class Canny_Detector(Pupil_Detector):
         #get the user_roi
         img = frame.img
         r_img = img[u_r.view]
+        #        bias_field = preproc.EstimateBias(r_img)
+        # r_img = preproc.Unbias(r_img, bias_field)
+        r_img = preproc.GaussBlur(r_img)
+        r_img = preproc.RobustRescale(r_img)
+        frame.img[u_r.view] = r_img
         gray_img = cv2.cvtColor(r_img,cv2.COLOR_BGR2GRAY)
 
 
