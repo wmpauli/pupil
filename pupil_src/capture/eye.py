@@ -20,7 +20,7 @@ from gl_utils import basic_gl_setup,adjust_gl_view, clear_gl_screen, draw_gl_poi
 from methods import *
 from uvc_capture import autoCreateCapture, FileCaptureError, EndofVideoFileError, CameraCaptureError
 from calibrate import get_map_from_cloud
-from pupil_detectors import Canny_Detector,MSER_Detector,Blob_Detector
+from pupil_detectors import Canny_Detector, MSER_Detector, Blob_Detector, MrGaze_Detector
 
 def eye(g_pool,cap_src,cap_size):
     """
@@ -149,7 +149,7 @@ def eye(g_pool,cap_src,cap_size):
 
     writer = None
 
-    pupil_detector = Canny_Detector(g_pool)
+    pupil_detector = MrGaze_Detector(g_pool)
 
     atb.init()
     # Create main ATB Controls
