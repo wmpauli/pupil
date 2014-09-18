@@ -29,7 +29,7 @@
 '''
 
 import cv2
-from time import sleep
+from time import sleep, time
 import numpy as np
 from methods import *
 import atb
@@ -47,7 +47,7 @@ class MrGaze_Detector(object):
 
     no_result = {} # this is returned when no pupil was detected
     no_result['norm_pupil'] = None
-    no_result['timestamp'] = time.time() 
+    no_result['timestamp'] = time() 
 
     def __init__(self, gpool): # what's up with gpood. We don't seem to be using it
         ''' Class Initiator) '''
@@ -63,7 +63,7 @@ class MrGaze_Detector(object):
         logger.debug('  Loading LBP cascade')
         self.cascade = cv2.CascadeClassifier(LBP_path)
 
-    def detect(self,frame,user_roi):
+    def detect(self,frame,user_roi, visualize=False):
         ''' detect a pupil in this frame, taking roi into account '''
         img = frame.img
         # hint: create a view into the img with the bounds of user set region of interest
