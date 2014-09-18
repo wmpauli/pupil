@@ -24,38 +24,40 @@ import os
 
 class MrGaze_Detector(object):
     """ a pupil detector based on Mr. Gaze """
-    dummy_param = c_int(0)
-    no_result = {}
-    no_result['norm_pupil'] = None
 
-    def __init__(self, gpool):
+    no_result = {} # this is returned when no pupil was detected
+    no_result['norm_pupil'] = None
+    no_result['timestamp'] = time.time() 
+
+    def __init__(self, gpool): # what's up with gpood. We don't seem to be using it
+        ''' Class Initiator) '''
         super(MrGaze_Detector, self).__init__()
+        
         # Create a new parser
         self.cfg = ConfigParser.ConfigParser()
         self.cfg = config.InitConfig(self.cfg)
-
+        
+        # Init Cascade Classfier
         mrclean_root = utils._package_root()
         LBP_path = os.path.join(mrclean_root, 'Cascade/cascade.xml')
         logger.debug('  Loading LBP cascade')
         self.cascade = cv2.CascadeClassifier(LBP_path)
 
-    def detect(self,frame,user_roi,visualize=False):
+    def detect(self,frame,user_roi):
+        ''' detect a pupil in this frame, taking roi into account '''
         img = frame.img
         # hint: create a view into the img with the bounds of user set region of interest
         pupil_img = img[user_roi.lY:user_roi.uY,user_roi.lX:user_roi.uX]
-        if visualize:
-            pass
-            # draw into image whatever you like and it will be displayed
-            # otherwise you shall not modify img data inplace!
 
-
-        # call Mike's amazing PupilometryEngine
+        # convert to gray scale
         gray_img = cv2.cvtColor(pupil_img,cv2.COLOR_BGR2GRAY)
 
+        # get ROI properties? Not sure we need to call this as often (check canny_detector)
         p_r = Roi(gray_img.shape)
         p_r.set((0,0,None,None))
         w = img.shape[0]/2
         
+        # call Mike's amazing PupilometryEngine
         e, roi_rect, blink, glint = PupilometryEngine(gray_img, self.cascade, self.cfg)
         pupil_ellipse = {}
         pupil_ellipse['confidence'] = .9
@@ -72,19 +74,29 @@ class MrGaze_Detector(object):
         pupil_ellipse['center'] = e_img_center
         pupil_ellipse['timestamp'] = frame.timestamp
 
+        # return pupil if we found one, otherwise return no_result
         if np.isnan(e[0][0]) == False:
             return pupil_ellipse # all this will be sent to the world process, you can add whateever you need to this.
-
         else:
             self.no_result['timestamp'] = frame.timestamp
             return self.no_result
 
 
+    def set_ldb_minneighbors(self,minneighbors):
+        ''' set min neighbors of classifier ''' 
+        self.cfg.set('LBP','minneighbors',str(minneighbors))
+
+    def get_ldb_minneighbors(self):
+        ''' get setting of min neighbors in classifier '''
+        return c_int(self.cfg.getint('LBP','minneighbors'))
+
     def create_atb_bar(self,pos):
-        self.bar = atb.Bar(name = "Pupil_Detector", label="Pupil Detector Controls",
-            help="pupil detection params", color=(50, 50, 50), alpha=100,
+        ''' create advanced tweak bar with setting for Mr. Gaze '''
+        self.bar = atb.Bar(name = "Mr_Gaze_Detector", label="Mr. Gaze Controls",
+            help="Mr. Gaze Params", color=(50, 50, 50), alpha=100,
             text='light', position=pos,refresh=.3, size=(200, 200))
-        self.bar.add_var("DUMMY_PARAM",self.dummy_param, step=1.,readonly=False)
+
+        self.bar.add_var("min neighbors", vtype=c_int, setter=self.set_ldb_minneighbors, getter=self.get_ldb_minneighbors)
 
 
 
