@@ -1,11 +1,31 @@
 '''
-(*)~----------------------------------------------------------------------------------
- Pupil - eye tracking platform
- Copyright (C) 2012-2014  Pupil Labs
+(*)~--------------------------------------------------------------------------
 
- Distributed under the terms of the CC BY-NC-SA License.
- License details are in the file license.txt, distributed as part of this software.
-----------------------------------------------------------------------------------~(*)
+ Video pupilometry 
+ - detects pupils
+
+ AUTHOR : Mike Tyszka, Wolfgang Pauli
+ PLACE : Caltech
+ DATES : 2014-09-17 WMP from scratch
+
+ This file is part of mrgaze.
+
+ mrgaze is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ mrgaze is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with mrgaze. If not, see <http://www.gnu.org/licenses/>.
+
+ Copyright 2014 California Institute of Technology.
+
+--------------------------------------------------------------------------~(*)
 '''
 
 import cv2
