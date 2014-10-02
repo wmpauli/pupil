@@ -71,30 +71,35 @@ def eye(g_pool,cap_src,cap_size):
 
     def on_button(window,button, action, mods):
         if not atb.TwEventMouseButtonGLFW(button,int(action == GLFW_PRESS)):
-            if action == GLFW_PRESS:
-                if bar.display.value ==1:
+            if action == GLFW_PRESS: # mouse button was pressed
+                if bar.display.value == 1:
                     pos = glfwGetCursorPos(window)
                     pos = normalize(pos,glfwGetWindowSize(window))
                     pos = denormalize(pos,(frame.img.shape[1],frame.img.shape[0]) ) # pos in frame.img pixels
-                    u_r.setStart(pos)
-                    bar.draw_roi.value = 1
-            else:
-                bar.draw_roi.value = 0
-                # now also set the AOI for the camera
-                roi_tmp = u_r.get()
-                try: 
-                    cap.capture.set_size(x = roi_tmp[0], y = roi_tmp[1], width=roi_tmp[2] - roi_tmp[0], height=roi_tmp[3] - roi_tmp[1])
-                except AttributeError:
-                    pass
+                    if bar.draw_roi.value:
+                        u_r.setStart(pos)
+                        bar.drawing_roi.value = 1
+                    elif bar.pick_pupil.value:
+                        print "pupil location is: " + str(pos)
+            else: # button released
+                if bar.drawing_roi.value == 1:
+                    bar.drawing_roi.value = 0
+                    # now also set the AOI for the camera
+                    roi_tmp = u_r.get()
+                    try: 
+                        cap.capture.set_size(x = roi_tmp[0], y = roi_tmp[1], width=roi_tmp[2] - roi_tmp[0], height=roi_tmp[3] - roi_tmp[1])
+                    except AttributeError:
+                        pass
 
 
     def on_pos(window,x, y):
+        ''' seems to get called if mouse is pressed and moved ''' 
         norm_pos = normalize((x,y),glfwGetWindowSize(window))
         fb_x,fb_y = denormalize(norm_pos,glfwGetFramebufferSize(window))
         if atb.TwMouseMotion(int(fb_x),int(fb_y)):
             pass
 
-        if bar.draw_roi.value == 1:
+        if bar.drawing_roi.value == 1:
             pos = denormalize(norm_pos,(frame.img.shape[1],frame.img.shape[0]) ) # pos in frame.img pixels
             u_r.setEnd(pos)
 
@@ -110,7 +115,7 @@ def eye(g_pool,cap_src,cap_size):
     # Helper functions called by the main atb bar
     def start_roi():
         bar.display.value = 1
-        bar.draw_roi.value = 2
+        bar.drawing_roi.value = 2
 
     def update_fps():
         old_time, bar.timestamp = bar.timestamp, time()
@@ -158,14 +163,16 @@ def eye(g_pool,cap_src,cap_size):
     # Create main ATB Controls
     bar = atb.Bar(name = "Eye", label="Display",
             help="Scene controls", color=(50, 50, 50), alpha=100,
-            text='light', position=(10, 10),refresh=.3, size=(200, 100))
+            text='light', position=(10, 10),refresh=.3, size=(200, 150))
     bar.fps = c_float(0.0)
     bar.timestamp = time()
     bar.dt = c_float(0.0)
     bar.sleep = c_float(0.0)
     bar.display = c_int(load('bar.display',0))
     bar.draw_pupil = c_bool(load('bar.draw_pupil',True))
-    bar.draw_roi = c_int(0)
+    bar.drawing_roi = c_int(0)
+    bar.draw_roi = c_bool(load('bar.draw_roi',False))
+    bar.pick_pupil = c_bool(load('bar.draw_roi',False))
 
     dispay_mode_enum = atb.enum("Mode",{"Camera Image":0,
                                         "Region of Interest":1,
@@ -175,7 +182,8 @@ def eye(g_pool,cap_src,cap_size):
     bar.add_var("FPS",bar.fps, step=1.,readonly=True)
     bar.add_var("Mode", bar.display,vtype=dispay_mode_enum, help="select the view-mode")
     bar.add_var("Show_Pupil_Point", bar.draw_pupil)
-    bar.add_button("Draw_ROI", start_roi, help="drag on screen to select a region of interest")
+    bar.add_var("Draw ROI", bar.draw_roi)
+    bar.add_var("Pick Pupil", bar.pick_pupil)
 
     bar.add_var("SlowDown",bar.sleep, step=0.01,min=0.0)
     bar.add_var("SaveSettings&Exit", g_pool.quit)
@@ -183,7 +191,7 @@ def eye(g_pool,cap_src,cap_size):
     cap.create_atb_bar(pos=(220,10))
 
     # create a bar for the detector
-    pupil_detector.create_atb_bar(pos=(10,120))
+    pupil_detector.create_atb_bar(pos=(10,160))
 
 
     glfwInit()
