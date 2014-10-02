@@ -243,7 +243,8 @@ def eye(g_pool,cap_src,cap_size):
                 logger.info("Will save eye video to: %s"%record_path)
                 video_path = os.path.join(record_path, "eye.avi")
                 timestamps_path = os.path.join(record_path, "eye_timestamps.npy")
-                writer = cv2.VideoWriter(video_path, cv2.cv.CV_FOURCC(*'DIVX'), bar.fps.value, (frame.img.shape[1], frame.img.shape[0]))
+                print u_r.get()
+                writer = cv2.VideoWriter(video_path, cv2.cv.CV_FOURCC(*'DIVX'), bar.fps.value, (abs(u_r.uX-u_r.lX), abs(u_r.uY - u_r.lY)))
                 timestamps = []
             else:
                 logger.info("Done recording eye.")
@@ -252,7 +253,8 @@ def eye(g_pool,cap_src,cap_size):
                 del timestamps
 
         if writer:
-            writer.write(frame.img)
+            pupil_img = frame.img[u_r.lY:u_r.uY,u_r.lX:u_r.uX]
+            writer.write(pupil_img)
             timestamps.append(frame.timestamp)
 
 

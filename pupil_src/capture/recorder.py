@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 class Recorder(Plugin):
     """Capture Recorder"""
-    def __init__(self,g_pool, session_str, fps, img_shape, record_eye, eye_tx,audio = -1):
+    def __init__(self,g_pool, session_str, fps, img_shape, record_eye, eye_tx, audio = -1):
         Plugin.__init__(self)
         self.g_pool = g_pool
         self.session_str = session_str
