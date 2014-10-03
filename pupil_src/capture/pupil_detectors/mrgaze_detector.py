@@ -115,8 +115,11 @@ class MrGaze_Detector(object):
         self.bar = atb.Bar(name = "Mr_Gaze_Detector", label="Mr. Gaze Controls",
             help="Mr. Gaze Params", color=(50, 50, 50), alpha=100,
             text='light', position=pos, refresh=.3, size=(200, 100))
+        self.bar.fps = c_float(10)
 
+        self.bar.add_var("fps", self.bar.fps)
         self.bar.add_var("min neighbors", vtype=c_int, setter=self.set_ldb_minneighbors, getter=self.get_ldb_minneighbors)
 
 
-
+    def cleanup(self):
+        return 

@@ -150,7 +150,7 @@ def eye(g_pool,cap_src,cap_size):
         logger.error("Could not retrieve image from capture")
         cap.close()
         return
-    height,width = frame.img.shape[:2]
+    height, width = frame.img.shape[:2]
 
     u_r = Roi(frame.img.shape)
     u_r.set(load('roi',default=None))
@@ -165,6 +165,7 @@ def eye(g_pool,cap_src,cap_size):
             help="Scene controls", color=(50, 50, 50), alpha=100,
             text='light', position=(10, 10),refresh=.3, size=(200, 150))
     bar.fps = c_float(0.0)
+    bar.fps_display = c_float(30.0)
     bar.timestamp = time()
     bar.dt = c_float(0.0)
     bar.sleep = c_float(0.0)
@@ -179,7 +180,8 @@ def eye(g_pool,cap_src,cap_size):
                                         "Algorithm":2,
                                         "CPU Save": 3})
 
-    bar.add_var("FPS",bar.fps, step=1.,readonly=True)
+    bar.add_var("FPS", bar.fps, step=1.,readonly=True)
+    bar.add_var("Display FPS", bar.fps_display, step=1., min=1, readonly=False)
     bar.add_var("Mode", bar.display,vtype=dispay_mode_enum, help="select the view-mode")
     bar.add_var("Show_Pupil_Point", bar.draw_pupil)
     bar.add_var("Draw ROI", bar.draw_roi)
@@ -217,7 +219,8 @@ def eye(g_pool,cap_src,cap_size):
     # refresh speed settings
     glfwSwapInterval(0)
 
-
+    lpft = 0.1 # last time a frame was processed by pupil_dector
+    ldu = 0.1 # last time display has been updated
     # event loop
     while not g_pool.quit.value:
         # Get an image from the grabber
@@ -243,7 +246,6 @@ def eye(g_pool,cap_src,cap_size):
                 logger.info("Will save eye video to: %s"%record_path)
                 video_path = os.path.join(record_path, "eye.avi")
                 timestamps_path = os.path.join(record_path, "eye_timestamps.npy")
-                print u_r.get()
                 writer = cv2.VideoWriter(video_path, cv2.cv.CV_FOURCC(*'DIVX'), bar.fps.value, (abs(u_r.uX-u_r.lX), abs(u_r.uY - u_r.lY)))
                 timestamps = []
             else:
@@ -259,9 +261,13 @@ def eye(g_pool,cap_src,cap_size):
 
 
         # pupil ellipse detection
-        result = pupil_detector.detect(frame,user_roi=u_r,visualize=bar.display.value == 2)
-        # stream the result
-        g_pool.pupil_queue.put(result)
+        
+        if time() - lpft > 1.0/pupil_detector.bar.fps.value:
+            result = pupil_detector.detect(frame,user_roi=u_r,visualize=bar.display.value == 2)
+            lpft = time()
+        
+            # stream the result
+            g_pool.pupil_queue.put(result)
 
         # VISUALIZATION direct visualizations on the frame.img data
         if bar.display.value == 1:
@@ -275,26 +281,28 @@ def eye(g_pool,cap_src,cap_size):
 
 
         # GL-drawing
-        clear_gl_screen()
-        make_coord_system_norm_based()
-        if bar.display.value != 3:
-            draw_named_texture(g_pool.image_tex,frame.img)
-        else:
-            draw_named_texture(g_pool.image_tex)
-        make_coord_system_pixel_based(frame.img.shape)
+        if time() - ldu > 1.0/bar.fps_display.value:
+            ldu = time()
+            clear_gl_screen()
+            make_coord_system_norm_based()
+            if bar.display.value != 3:
+                draw_named_texture(g_pool.image_tex,frame.img)
+            else:
+                draw_named_texture(g_pool.image_tex)
+            make_coord_system_pixel_based(frame.img.shape)
 
 
-        if result['norm_pupil'] is not None and bar.draw_pupil.value:
-            if result.has_key('axes'):
-                pts = cv2.ellipse2Poly( (int(result['center'][0]),int(result['center'][1])),
-                                        (int(result["axes"][0]/2),int(result["axes"][1]/2)),
-                                        int(result["angle"]),0,360,15)
-                draw_gl_polyline(pts,(1.,0,0,.5))
-            draw_gl_point_norm(result['norm_pupil'],color=(1.,0.,0.,0.5))
+            if result['norm_pupil'] is not None and bar.draw_pupil.value:
+                if result.has_key('axes'):
+                    pts = cv2.ellipse2Poly( (int(result['center'][0]),int(result['center'][1])),
+                                            (int(result["axes"][0]/2),int(result["axes"][1]/2)),
+                                            int(result["angle"]),0,360,15)
+                    draw_gl_polyline(pts,(1.,0,0,.5))
+                draw_gl_point_norm(result['norm_pupil'],color=(1.,0.,0.,0.5))
 
-        atb.draw()
-        glfwSwapBuffers(window)
-        glfwPollEvents()
+            atb.draw()
+            glfwSwapBuffers(window)
+            glfwPollEvents()
 
     # END while running
 

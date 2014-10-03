@@ -69,7 +69,6 @@ def autoCreateCapture(src,size=(640,480),fps=30,timestamps=None,timebase = None)
 
 
 
-        # todo
         cap = Camera_Capture(matching_devices[0],filter_sizes(matching_devices[0],size),fps,timebase)
         logger.info("Camera selected: %s  with id: %s" %(cap.name,cap.src_id))
         return cap
