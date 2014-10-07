@@ -102,6 +102,14 @@ class MrGaze_Detector(object):
             return self.no_result
 
 
+    def set_ldb_enabled(self,enabled):
+        ''' set min neighbors of classifier ''' 
+        self.cfg.set('LBP','enabled', str(enabled))
+
+    def get_ldb_enabled(self):
+        ''' get setting of min neighbors in classifier '''
+        return c_bool(self.cfg.getboolean('LBP','enabled'))
+
     def set_ldb_minneighbors(self,minneighbors):
         ''' set min neighbors of classifier ''' 
         self.cfg.set('LBP','minneighbors',str(minneighbors))
@@ -118,7 +126,9 @@ class MrGaze_Detector(object):
         self.bar.fps = c_float(10)
 
         self.bar.add_var("fps", self.bar.fps)
+        self.bar.add_var("LPB", vtype=c_bool, setter=self.set_ldb_enabled, getter=self.get_ldb_enabled)
         self.bar.add_var("min neighbors", vtype=c_int, setter=self.set_ldb_minneighbors, getter=self.get_ldb_minneighbors)
+
 
 
     def cleanup(self):
