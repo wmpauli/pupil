@@ -66,6 +66,8 @@ class MrGaze_Detector(object):
     def detect(self,frame,user_roi, visualize=False):
         ''' detect a pupil in this frame, taking roi into account '''
         img = frame.img
+
+
         # hint: create a view into the img with the bounds of user set region of interest
         pupil_img = img[user_roi.lY:user_roi.uY,user_roi.lX:user_roi.uX]
 
@@ -118,17 +120,35 @@ class MrGaze_Detector(object):
         ''' get setting of min neighbors in classifier '''
         return c_int(self.cfg.getint('LBP','minneighbors'))
 
+    def set_percmin(self,percmin):
+        ''' set min neighbors of classifier ''' 
+        self.cfg.set('PUPILSEG','percmin',str(percmin))
+
+    def get_percmin(self):
+        ''' get setting of min neighbors in classifier '''
+        return c_int(self.cfg.getint('PUPILSEG','percmin'))
+
+    def set_percmax(self,percmax):
+        ''' set max neighbors of classifier ''' 
+        self.cfg.set('PUPILSEG','percmax',str(percmax))
+
+    def get_percmax(self):
+        ''' get setting of max neighbors in classifier '''
+        return c_int(self.cfg.getint('PUPILSEG','percmax'))
+
     def create_atb_bar(self,pos):
         ''' create advanced tweak bar with setting for Mr. Gaze '''
         self.bar = atb.Bar(name = "Mr_Gaze_Detector", label="Mr. Gaze Controls",
             help="Mr. Gaze Params", color=(50, 50, 50), alpha=100,
             text='light', position=pos, refresh=.3, size=(200, 100))
         self.bar.fps = c_float(10)
-
+        
         self.bar.add_var("fps", self.bar.fps)
         self.bar.add_var("LPB", vtype=c_bool, setter=self.set_ldb_enabled, getter=self.get_ldb_enabled)
         self.bar.add_var("min neighbors", vtype=c_int, setter=self.set_ldb_minneighbors, getter=self.get_ldb_minneighbors)
 
+        self.bar.add_var("percmin", vtype=c_int, setter=self.set_percmin, getter=self.get_percmin, min=0, max=100)
+        self.bar.add_var("percmax", vtype=c_int, setter=self.set_percmax, getter=self.get_percmax, min=0, max=100)
 
 
     def cleanup(self):
