@@ -168,6 +168,14 @@ class MrGaze_Detector(object):
         ''' get setting of max neighbors in classifier '''
         return c_int(self.cfg.getint('RANSAC','maxinlierperc'))
 
+    def set_graphics(self,graphics):
+        ''' set max neighbors of classifier ''' 
+        self.cfg.set('OUTPUT','graphics',str(graphics))
+
+    def get_graphics(self):
+        ''' get setting of max neighbors in classifier '''
+        return c_bool(self.cfg.getint('OUTPUT','graphics'))
+
     def create_atb_bar(self,pos):
         ''' create advanced tweak bar with setting for Mr. Gaze '''
         self.bar = atb.Bar(name = "Mr_Gaze_Detector", label="Mr. Gaze Controls",
@@ -185,6 +193,7 @@ class MrGaze_Detector(object):
         self.bar.add_var("ransac_maxiter", vtype=c_int, setter=self.set_ransac_maxiter, getter=self.get_ransac_maxiter, min=0, max=100)
         self.bar.add_var("ransac_maxrefine", vtype=c_int, setter=self.set_ransac_maxrefine, getter=self.get_ransac_maxrefine, min=0, max=100)
         self.bar.add_var("ransac_maxinlierperc", vtype=c_int, setter=self.set_ransac_maxinlierperc, getter=self.get_ransac_maxinlierperc, min=0, max=100)
+        self.bar.add_var("graphics", vtype=c_bool, setter=self.set_graphics, getter=self.get_graphics)
 
 
     def cleanup(self):
