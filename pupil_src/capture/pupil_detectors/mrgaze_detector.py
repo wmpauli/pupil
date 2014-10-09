@@ -80,7 +80,7 @@ class MrGaze_Detector(object):
         w = img.shape[0]/2
         
         # call Mike's amazing PupilometryEngine
-        e, roi_rect, blink, glint = PupilometryEngine(gray_img, self.cascade, self.cfg)
+        e, roi_rect, blink, glint, rgb_frame = PupilometryEngine(gray_img, self.cascade, self.cfg)
         pupil_ellipse = {}
         pupil_ellipse['confidence'] = .9
         pupil_ellipse['ellipse'] = e
@@ -136,11 +136,43 @@ class MrGaze_Detector(object):
         ''' get setting of max neighbors in classifier '''
         return c_int(self.cfg.getint('PUPILSEG','percmax'))
 
+    def set_downsampling(self,downsampling):
+        ''' set max neighbors of classifier ''' 
+        self.cfg.set('VIDEO','downsampling',str(downsampling))
+
+    def get_downsampling(self):
+        ''' get setting of max neighbors in classifier '''
+        return c_int(self.cfg.getint('VIDEO','downsampling'))
+
+    def set_ransac_maxiter(self,maxiterations):
+        ''' set max neighbors of classifier ''' 
+        self.cfg.set('RANSAC','maxiterations',str(maxiterations))
+
+    def get_ransac_maxiter(self):
+        ''' get setting of max neighbors in classifier '''
+        return c_int(self.cfg.getint('RANSAC','maxiterations'))
+
+    def set_ransac_maxrefine(self,maxrefinements):
+        ''' set max neighbors of classifier ''' 
+        self.cfg.set('RANSAC','maxrefinements',str(maxrefinements))
+
+    def get_ransac_maxrefine(self):
+        ''' get setting of max neighbors in classifier '''
+        return c_int(self.cfg.getint('RANSAC','maxrefinements'))
+
+    def set_ransac_maxinlierperc(self,maxinlierperc):
+        ''' set max neighbors of classifier ''' 
+        self.cfg.set('RANSAC','maxinlierperc',str(maxinlierperc))
+
+    def get_ransac_maxinlierperc(self):
+        ''' get setting of max neighbors in classifier '''
+        return c_int(self.cfg.getint('RANSAC','maxinlierperc'))
+
     def create_atb_bar(self,pos):
         ''' create advanced tweak bar with setting for Mr. Gaze '''
         self.bar = atb.Bar(name = "Mr_Gaze_Detector", label="Mr. Gaze Controls",
             help="Mr. Gaze Params", color=(50, 50, 50), alpha=100,
-            text='light', position=pos, refresh=.3, size=(200, 100))
+            text='light', position=pos, refresh=.3, size=(200, 200))
         self.bar.fps = c_float(10)
         
         self.bar.add_var("fps", self.bar.fps)
@@ -149,6 +181,10 @@ class MrGaze_Detector(object):
 
         self.bar.add_var("percmin", vtype=c_int, setter=self.set_percmin, getter=self.get_percmin, min=0, max=100)
         self.bar.add_var("percmax", vtype=c_int, setter=self.set_percmax, getter=self.get_percmax, min=0, max=100)
+        self.bar.add_var("downsampling", vtype=c_int, setter=self.set_downsampling, getter=self.get_downsampling, min=0, max=100)
+        self.bar.add_var("ransac_maxiter", vtype=c_int, setter=self.set_ransac_maxiter, getter=self.get_ransac_maxiter, min=0, max=100)
+        self.bar.add_var("ransac_maxrefine", vtype=c_int, setter=self.set_ransac_maxrefine, getter=self.get_ransac_maxrefine, min=0, max=100)
+        self.bar.add_var("ransac_maxinlierperc", vtype=c_int, setter=self.set_ransac_maxinlierperc, getter=self.get_ransac_maxinlierperc, min=0, max=100)
 
 
     def cleanup(self):
