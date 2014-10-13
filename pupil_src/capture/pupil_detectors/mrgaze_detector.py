@@ -174,7 +174,7 @@ class MrGaze_Detector(object):
 
     def get_graphics(self):
         ''' get setting of max neighbors in classifier '''
-        return c_bool(self.cfg.getint('OUTPUT','graphics'))
+        return c_bool(self.cfg.getboolean('OUTPUT','graphics'))
 
     def create_atb_bar(self,pos):
         ''' create advanced tweak bar with setting for Mr. Gaze '''
