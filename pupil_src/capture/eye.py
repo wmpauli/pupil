@@ -165,7 +165,7 @@ def eye(g_pool,cap_src,cap_size):
             help="Scene controls", color=(50, 50, 50), alpha=100,
             text='light', position=(10, 10),refresh=.3, size=(200, 150))
     bar.fps = c_float(0.0)
-    bar.fps_display = c_float(30.0)
+    bar.skip_frames = c_int(0)
     bar.timestamp = time()
     bar.dt = c_float(0.0)
     bar.sleep = c_float(0.0)
@@ -181,7 +181,7 @@ def eye(g_pool,cap_src,cap_size):
                                         "CPU Save": 3})
 
     bar.add_var("FPS", bar.fps, step=1.,readonly=True)
-    bar.add_var("Display FPS", bar.fps_display, step=1., min=1, readonly=False)
+    bar.add_var("Skip Frames", bar.skip_frames, step=1, min=0, readonly=False)
     bar.add_var("Mode", bar.display,vtype=dispay_mode_enum, help="select the view-mode")
     bar.add_var("Show_Pupil_Point", bar.draw_pupil)
     bar.add_var("Draw ROI", bar.draw_roi)
@@ -220,7 +220,8 @@ def eye(g_pool,cap_src,cap_size):
     glfwSwapInterval(0)
 
     lpft = 0.1 # last time a frame was processed by pupil_dector
-    ldu = 0.1 # last time display has been updated
+    #ldu = 0.1 # last time display has been updated
+    skipped_frames = 0
     # event loop
     while not g_pool.quit.value:
         # Get an image from the grabber
@@ -280,9 +281,9 @@ def eye(g_pool,cap_src,cap_size):
 
 
 
-        # GL-drawing
-        if time() - ldu > 1.0/bar.fps_display.value:
-            ldu = time()
+        # GL-drawing, only draw at specified rate
+        if bar.skip_frames.value == 0 or skipped_frames == bar.skip_frames.value:
+            skipped_frames = 0
             clear_gl_screen()
             make_coord_system_norm_based()
             if bar.display.value != 3:
@@ -303,6 +304,8 @@ def eye(g_pool,cap_src,cap_size):
             atb.draw()
             glfwSwapBuffers(window)
             glfwPollEvents()
+        else:
+            skipped_frames += 1
 
     # END while running
 
