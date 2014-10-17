@@ -114,7 +114,10 @@ class File_Capture():
         s, img = self.cap.read()
         if not s:
             logger.warning("Reached end of video file.")
-            raise EndofVideoFileError("Reached end of video file.")
+            self.seek_to_frame(0)
+            idx = int(self.cap.get(cv2.cv.CV_CAP_PROP_POS_FRAMES))
+            s, img = self.cap.read()
+            #raise EndofVideoFileError("Reached end of video file.")
         if self.timestamps:
             try:
                 timestamp = self.timestamps[idx]

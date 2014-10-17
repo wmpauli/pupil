@@ -97,6 +97,7 @@ def main():
     # Use a string to specify the path to your video file as demonstrated below
     eye_filename = 'eye.mp4'
     if os.path.exists(eye_filename):
+        print "using video file as eye"
         eye_src = eye_filename
     else:
         eye_src = ["UI154xLE-M", "USB Camera-B4.09.24.1", "FaceTime Camera (Built-in)", "Microsoft", "6000","Integrated Camera"]

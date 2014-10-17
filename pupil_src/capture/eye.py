@@ -49,7 +49,7 @@ def eye(g_pool,cap_src,cap_size):
     logger.addHandler(ch)
     # create logger for the context of this function
     logger = logging.getLogger(__name__)
-
+    border = 300
 
     # Callback functions
     def on_resize(window,w, h):
@@ -146,6 +146,7 @@ def eye(g_pool,cap_src,cap_size):
         return
     # check if it works
     frame = cap.get_frame()
+    frame.img = frame.img[border:frame.img.shape[0] - border,border:frame.img.shape[1] - border]
     if frame.img is None:
         logger.error("Could not retrieve image from capture")
         cap.close()
@@ -227,6 +228,7 @@ def eye(g_pool,cap_src,cap_size):
         # Get an image from the grabber
         try:
             frame = cap.get_frame()
+            frame.img = frame.img[border:frame.img.shape[0] - border,border:frame.img.shape[1] - border]
         except CameraCaptureError:
             logger.error("Capture from Camera Failed. Stopping.")
             break

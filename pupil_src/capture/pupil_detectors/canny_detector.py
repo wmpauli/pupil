@@ -518,24 +518,26 @@ class Canny_Detector(Pupil_Detector):
         self.final_perimeter_ratio_range[0] = val
 
     def create_atb_bar(self,pos):
-        self._bar = atb.Bar(name = "Canny_Pupil_Detector", label="Pupil_Detector",
+        self.bar = atb.Bar(name = "Canny_Pupil_Detector", label="Pupil_Detector",
             help="pupil detection parameters", color=(50, 50, 50), alpha=100,
             text='light', position=pos,refresh=.3, size=(200, 100))
-        self._bar.add_var("use coarse detection",self.coarse_detection,help="Disbale when you have trouble with detection when using Mascara.")
-        self._bar.add_button("open debug window", self.toggle_window,help="Open a debug window that shows geeky visual feedback from the algorithm.")
-        self._bar.add_var("pupil_intensity_range",self.intensity_range,help="Using alorithm view set this as low as possible but so that the pupil is always fully overlayed in blue.")
-        self._bar.add_var("pupil_min",self.pupil_min,min=1,help="Setting good bounds will increase detection robustness. Use alorithm view to see.")
-        self._bar.add_var("pupil_max",self.pupil_max,min=1,help="Setting good bounds will increase detection robustness. Use alorithm view to see.")
-        self._bar.add_var("Pupil_Aparent_Size",self.target_size,readonly=True)
-        self._bar.add_var("Contour min length",self.min_contour_size,help="Setting this low will make the alorithm try to connect even smaller arcs to find the pupil but cost you cpu time!")
-        self._bar.add_var("confidece threshold",c_float(0),getter= lambda: self.final_perimeter_ratio_range[0], setter=self.set_final_perimeter_ratio_range,step=.05,min=0.,max=1. ,
+        self.bar.fps = c_float(10)        
+        self.bar.add_var("fps", self.bar.fps, min=1)
+        self.bar.add_var("use coarse detection",self.coarse_detection,help="Disbale when you have trouble with detection when using Mascara.")
+        self.bar.add_button("open debug window", self.toggle_window,help="Open a debug window that shows geeky visual feedback from the algorithm.")
+        self.bar.add_var("pupil_intensity_range",self.intensity_range,help="Using alorithm view set this as low as possible but so that the pupil is always fully overlayed in blue.")
+        self.bar.add_var("pupil_min",self.pupil_min,min=1,help="Setting good bounds will increase detection robustness. Use alorithm view to see.")
+        self.bar.add_var("pupil_max",self.pupil_max,min=1,help="Setting good bounds will increase detection robustness. Use alorithm view to see.")
+        self.bar.add_var("Pupil_Aparent_Size",self.target_size,readonly=True)
+        self.bar.add_var("Contour min length",self.min_contour_size,help="Setting this low will make the alorithm try to connect even smaller arcs to find the pupil but cost you cpu time!")
+        self.bar.add_var("confidece threshold",c_float(0),getter= lambda: self.final_perimeter_ratio_range[0], setter=self.set_final_perimeter_ratio_range,step=.05,min=0.,max=1. ,
                             help="Fraction of pupil boundry that has to be visible and detected for the resukt to be declared valid.")
-        # self._bar.add_var("Pupil_Shade",self.bin_thresh, readonly=True)
-        self._bar.add_var("confidence",self.confidence, readonly=True,help="The measure of confidence is a number between 0 and 1 of how sure the algorithm is about the detected pupil. We currenlty use the fraction of pupil boundry edge that is used as support for the ellipse result.")
-        # self._bar.add_var("Image_Blur",self.blur, step=2,min=1,max=9)
-        # self._bar.add_var("Canny_aparture",self.canny_aperture, step=2,min=3,max=7)
-        # self._bar.add_var("canny_threshold",self.canny_thresh, step=1,min=0)
-        # self._bar.add_var("Canny_ratio",self.canny_ratio, step=1,min=1)
+        # self.bar.add_var("Pupil_Shade",self.bin_thresh, readonly=True)
+        self.bar.add_var("confidence",self.confidence, readonly=True,help="The measure of confidence is a number between 0 and 1 of how sure the algorithm is about the detected pupil. We currenlty use the fraction of pupil boundry edge that is used as support for the ellipse result.")
+        # self.bar.add_var("Image_Blur",self.blur, step=2,min=1,max=9)
+        # self.bar.add_var("Canny_aparture",self.canny_aperture, step=2,min=3,max=7)
+        # self.bar.add_var("canny_threshold",self.canny_thresh, step=1,min=0)
+        # self.bar.add_var("Canny_ratio",self.canny_ratio, step=1,min=1)
 
     def toggle_window(self):
         if self._window:
