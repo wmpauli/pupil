@@ -65,7 +65,6 @@ class FakeCapture(object):
     def get_frame(self):
         now =  time()
         spent = now - self.presentation_time
-        print self.fps.value
         wait = max(0,1./self.fps.value - spent)
         sleep(wait)
         self.presentation_time = time()
