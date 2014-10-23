@@ -49,7 +49,7 @@ def eye(g_pool,cap_src,cap_size):
     logger.addHandler(ch)
     # create logger for the context of this function
     logger = logging.getLogger(__name__)
-#    border = 000
+#    border = 300
 
     # Callback functions
     def on_resize(window,w, h):
