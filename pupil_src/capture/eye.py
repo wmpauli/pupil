@@ -69,7 +69,7 @@ def eye(g_pool,cap_src,cap_size):
         if not atb.TwEventCharGLFW(char,1):
             pass
 
-    def on_button(window,button, action, mods):
+    def on_button(window, button, action, mods):
         if not atb.TwEventMouseButtonGLFW(button,int(action == GLFW_PRESS)):
             if action == GLFW_PRESS: # mouse button was pressed
                 if bar.display.value == 1:
@@ -91,6 +91,10 @@ def eye(g_pool,cap_src,cap_size):
                     except AttributeError:
                         pass
 
+    def reset_aoi():
+        u_r.setStart((0,0))
+        u_r.setEnd((frame.img.shape[1], frame.img.shape[0]))
+        cap.capture.set_size()
 
     def on_pos(window,x, y):
         ''' seems to get called if mouse is pressed and moved ''' 
@@ -155,6 +159,8 @@ def eye(g_pool,cap_src,cap_size):
 
     u_r = Roi(frame.img.shape)
     u_r.set(load('roi',default=None))
+    roi_tmp = u_r.get()
+    cap.capture.set_size(x = roi_tmp[0], y = roi_tmp[1], width=roi_tmp[2] - roi_tmp[0], height=roi_tmp[3] - roi_tmp[1])
 
     writer = None
 
@@ -166,6 +172,7 @@ def eye(g_pool,cap_src,cap_size):
             help="Scene controls", color=(50, 50, 50), alpha=100,
             text='light', position=(10, 10),refresh=.3, size=(200, 150))
     bar.fps = c_float(0.0)
+    bar.fps_et = c_float(23.0)
     bar.skip_frames = c_int(0)
     bar.timestamp = time()
     bar.dt = c_float(0.0)
@@ -173,20 +180,20 @@ def eye(g_pool,cap_src,cap_size):
     bar.display = c_int(load('bar.display',0))
     bar.draw_pupil = c_bool(load('bar.draw_pupil',True))
     bar.drawing_roi = c_int(0)
-    bar.draw_roi = c_bool(load('bar.draw_roi',False))
-    bar.pick_pupil = c_bool(load('bar.draw_roi',False))
+    bar.draw_roi = c_bool(load('bar.draw_roi',True))
+#    bar.pick_pupil = c_bool(load('bar.draw_roi',False))
 
     dispay_mode_enum = atb.enum("Mode",{"Camera Image":0,
                                         "Region of Interest":1,
                                         "Algorithm":2,
                                         "CPU Save": 3})
 
-    bar.add_var("FPS", bar.fps, step=1.,readonly=True)
-    bar.add_var("Skip Frames", bar.skip_frames, step=1, min=0, readonly=False)
+    bar.add_var("FPS (rec)", bar.fps, step=1., readonly=True)
+    bar.add_var("FPS (ET)", bar.fps_et, step=1, min=1, readonly=False)
     bar.add_var("Mode", bar.display,vtype=dispay_mode_enum, help="select the view-mode")
     bar.add_var("Show_Pupil_Point", bar.draw_pupil)
     bar.add_var("Draw ROI", bar.draw_roi)
-    bar.add_var("Pick Pupil", bar.pick_pupil)
+    bar.add_button("reset AOI", reset_aoi, help="Click to reset AOI.")
 
     bar.add_var("SlowDown",bar.sleep, step=0.01,min=0.0)
     bar.add_var("SaveSettings&Exit", g_pool.quit)
@@ -221,8 +228,8 @@ def eye(g_pool,cap_src,cap_size):
     glfwSwapInterval(0)
 
     lpft = 0.1 # last time a frame was processed by pupil_dector
-    #ldu = 0.1 # last time display has been updated
-    skipped_frames = 0
+    # ldu = 0.1 # last time display has been updated
+    # skipped_frames = 0
     # event loop
     while not g_pool.quit.value:
         # Get an image from the grabber
@@ -264,8 +271,9 @@ def eye(g_pool,cap_src,cap_size):
 
 
         # pupil ellipse detection
-        
-        if time() - lpft > 1.0/pupil_detector.bar.fps.value:
+        process_frame = False
+        if time() - lpft > 1.0/bar.fps_et.value:
+            process_frame = True
             result = pupil_detector.detect(frame,user_roi=u_r,visualize=bar.display.value == 2)
             lpft = time()
         
@@ -284,7 +292,7 @@ def eye(g_pool,cap_src,cap_size):
 
 
         # GL-drawing, only draw at specified rate
-        if bar.skip_frames.value == 0 or skipped_frames == bar.skip_frames.value:
+        if process_frame: #bar.skip_frames.value == 0 or skipped_frames == bar.skip_frames.value:
             skipped_frames = 0
             clear_gl_screen()
             make_coord_system_norm_based()

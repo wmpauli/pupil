@@ -69,15 +69,15 @@ def autoCreateCapture(src,size=(640,480),fps=30,timestamps=None,timebase = None)
 
 
 
-        cap = Camera_Capture(matching_devices[0],filter_sizes(matching_devices[0],size),fps,timebase)
-        logger.info("Camera selected: %s  with id: %s" %(cap.name,cap.src_id))
+        cap = Camera_Capture(matching_devices[0],filter_sizes(matching_devices[0],size), fps, timebase)
+        logger.info("Camera selected: %s  with id: %s" %(cap.name, cap.src_id))
         return cap
 
     #looking for attached cameras that match cv_id
     elif src_type is int:
         for device in Camera_List():
             if device.src_id == src:
-                cap = Camera_Capture(device,filter_sizes(device,size),fps,timebase)
+                cap = Camera_Capture(device,filter_sizes(device,size), fps, timebase)
                 logger.info("Camera selected: %s  with id: %s" %(cap.name,cap.src_id))
                 return cap
 

@@ -239,9 +239,9 @@ class MrGaze_Detector(object):
         self.bar = atb.Bar(name = "Mr_Gaze_Detector", label="Mr. Gaze Controls",
             help="Mr. Gaze Params", color=(50, 50, 50), alpha=100,
             text='light', position=pos, refresh=.3, size=(200, 250))
-        self.bar.fps = c_float(10)
-        
-        self.bar.add_var("fps", self.bar.fps, min=1)
+#        self.bar.fps = c_float(10)
+#        
+#        self.bar.add_var("fps", self.bar.fps, min=1)
         self.bar.add_var("LPB", vtype=c_bool, setter=self.set_ldb_enabled, getter=self.get_ldb_enabled)
         self.bar.add_var("min neighbors", vtype=c_int, setter=self.set_ldb_minneighbors, getter=self.get_ldb_minneighbors)
         self.bar.pupilseg_method_enum = atb.enum("Method",{"otsu":0,
