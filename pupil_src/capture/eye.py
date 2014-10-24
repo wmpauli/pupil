@@ -150,17 +150,22 @@ def eye(g_pool,cap_src,cap_size):
         return
     # check if it works
     frame = cap.get_frame()
-#    frame.img = frame.img[border:frame.img.shape[0] - border,border:frame.img.shape[1] - border]
+    #    frame.img = frame.img[border:frame.img.shape[0] - border,border:frame.img.shape[1] - border]
+
     if frame.img is None:
         logger.error("Could not retrieve image from capture")
         cap.close()
         return
-    height, width = frame.img.shape[:2]
 
     u_r = Roi(frame.img.shape)
     u_r.set(load('roi',default=None))
+
     roi_tmp = u_r.get()
     cap.capture.set_size(x = roi_tmp[0], y = roi_tmp[1], width=roi_tmp[2] - roi_tmp[0], height=roi_tmp[3] - roi_tmp[1])
+
+#    border = 100
+#    frame.img = frame.img[u_r.lY-border:u_r.uY+border,u_r.lX-border:u_r.uX+border]
+    height, width = frame.img.shape[:2]
 
     writer = None
 
@@ -231,10 +236,12 @@ def eye(g_pool,cap_src,cap_size):
     # ldu = 0.1 # last time display has been updated
     # skipped_frames = 0
     # event loop
+    border = 0
     while not g_pool.quit.value:
         # Get an image from the grabber
         try:
             frame = cap.get_frame()
+#            frame.img = frame.img[u_r.lY-border:u_r.uY+border,u_r.lX-border:u_r.uX+border]
 #            frame.img = frame.img[border:frame.img.shape[0] - border,border:frame.img.shape[1] - border]
         except CameraCaptureError:
             logger.error("Capture from Camera Failed. Stopping.")
