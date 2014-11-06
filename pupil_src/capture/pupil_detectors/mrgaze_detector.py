@@ -204,11 +204,11 @@ class MrGaze_Detector(object):
 
     def set_gauss_sd(self,gauss_sd):
         ''' set max neighbors of classifier ''' 
-        self.cfg.set('PUPILSEG','gauss_sd',str(gauss_sd))
+        self.cfg.set('VIDEO','gauss_sd',str(gauss_sd))
 
     def get_gauss_sd(self):
         ''' get setting of max neighbors in classifier '''
-        return c_int(self.cfg.getint('PUPILSEG','gauss_sd'))
+        return c_int(self.cfg.getint('VIDEO','gauss_sd'))
 
     def set_graphics(self,graphics):
         ''' set max neighbors of classifier ''' 
