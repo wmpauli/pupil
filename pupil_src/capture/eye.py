@@ -161,7 +161,7 @@ def eye(g_pool,cap_src,cap_size):
     u_r.set(load('roi',default=None))
 
     roi_tmp = u_r.get()
-    cap.capture.set_size(x = roi_tmp[0], y = roi_tmp[1], width=roi_tmp[2] - roi_tmp[0], height=roi_tmp[3] - roi_tmp[1])
+    cap.capture.set_size(x = roi_tmp[0], y = roi_tmp[1], width = roi_tmp[2] - roi_tmp[0], height = roi_tmp[3] - roi_tmp[1])
 
 #    border = 100
 #    frame.img = frame.img[u_r.lY-border:u_r.uY+border,u_r.lX-border:u_r.uX+border]

@@ -272,6 +272,8 @@ class VideoCapture(object):
     def get_size(self):
         return self.sizes[self.current_size_idx]
 
+    def set_size(self, x, y, width, height):
+        return None
 
     def get_rate(self):
         n,d = self.rates[self.current_rate_idx]

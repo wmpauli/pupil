@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 from mrgaze import utils, config
 from mrgaze.pupilometry import PupilometryEngine
-from mrgaze.media import Downsample
+from mrgaze.media import Preproc
 import ConfigParser
 import os
 
@@ -75,19 +75,22 @@ class MrGaze_Detector(object):
         pupil_img = img[user_roi.lY:user_roi.uY,user_roi.lX:user_roi.uX]
 
         # convert to gray scale
-        gray_img = cv2.cvtColor(pupil_img,cv2.COLOR_BGR2GRAY)
+        # gray_img = cv2.cvtColor(pupil_img,cv2.COLOR_BGR2GRAY)
 
-        # get ROI properties? Not sure we need to call this as often (check canny_detector)
-        p_r = Roi(gray_img.shape)
-        p_r.set((0,0,None,None))
-        w = img.shape[0]/2
         
-        downsampling = self.cfg.getfloat('VIDEO', 'downsampling')
-        if downsampling > 1:
-            gray_img = Downsample(gray_img, downsampling)
+        #downsampling = self.cfg.getfloat('VIDEO', 'downsampling')
+        #if downsampling > 1:
+        #    gray_img = Downsample(gray_img, downsampling)
 
         # call Mike's amazing PupilometryEngine
-        e, roi_rect, blink, glint, rgb_frame = PupilometryEngine(gray_img, self.cascade, self.cfg)
+        pupil_img, art_power = Preproc(pupil_img, self.cfg)
+        e, roi_rect, blink, glint, rgb_frame = PupilometryEngine(pupil_img, self.cascade, self.cfg)
+
+        # get ROI properties? Not sure we need to call this as often (check canny_detector)
+        p_r = Roi(pupil_img.shape)
+        p_r.set((0,0,None,None))
+        w = img.shape[0]/2
+
         pupil_ellipse = {}
         pupil_ellipse['confidence'] = .9
         pupil_ellipse['ellipse'] = e
