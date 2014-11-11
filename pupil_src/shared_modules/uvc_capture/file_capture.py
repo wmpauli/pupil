@@ -22,7 +22,7 @@ it requires:
 import os,sys
 import cv2
 import numpy as np
-from time import time
+import time
 
 
 #logging
@@ -125,7 +125,8 @@ class File_Capture():
                 logger.warning("Reached end of timestamps list.")
                 raise EndofVideoFileError("Reached end of timestamps list.")
         else:
-            timestamp = time()
+            timestamp = time.time()
+        time.sleep(1.0/self.get_fps())
         return Frame(timestamp,img,index=idx)
 
     def seek_to_frame(self, seek_pos):
@@ -165,8 +166,11 @@ class File_Capture():
                 timestamp = 0
         else:
             logger.warning("Filecapture is not a realtime source. -NOW- will be the current time.")
-            timestamp = time()
+            timestamp = time.time()
         return timestamp
+
+    def set_size(self, x , y, width, height):
+        return True
 
     def create_atb_bar(self,pos):
         return 0,0

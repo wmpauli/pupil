@@ -95,7 +95,7 @@ def main():
 
     # to use a pre-recorded video.
     # Use a string to specify the path to your video file as demonstrated below
-    eye_filename = 'eye.mp4'
+    eye_filename = 'eye.avi'
     if os.path.exists(eye_filename):
         print "using video file as eye"
         eye_src = eye_filename
