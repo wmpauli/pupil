@@ -254,7 +254,7 @@ class MrGaze_Detector(object):
         self.bar.add_var("Method", vtype=self.bar.pupilseg_method_enum, setter=self.set_method, getter=self.get_method, help="select pupil seg method")
 
         self.bar.add_var("glint_percmax", vtype=c_int, setter=self.set_glint_percmax, getter=self.get_glint_percmax, min=0, max=100)
-        self.bar.add_var("pupil_threshold", vtype=c_int, setter=self.set_pupil_threshold, getter=self.get_pupil_threshold, min=0, max=100)
+        self.bar.add_var("pupil_threshold", vtype=c_int, setter=self.set_pupil_threshold, getter=self.get_pupil_threshold, min=0, max=255)
         self.bar.add_var("p_percmax", vtype=c_int, setter=self.set_pupil_percmax, getter=self.get_pupil_percmax, min=0, max=100)
         self.bar.add_var("downsampling", vtype=c_int, setter=self.set_downsampling, getter=self.get_downsampling, min=1, max=100)
         self.bar.add_var("ransac_maxiter", vtype=c_int, setter=self.set_ransac_maxiter, getter=self.get_ransac_maxiter, min=0, max=100)
