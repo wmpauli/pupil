@@ -700,8 +700,13 @@ class Bar(object):
                 if d.value is not None:
                     v[0] = getter(d.value)
                 else:
-                    v[0] = getter()
-
+                    try:
+                        v[0] = getter()
+                    except:
+                        print v
+                        print d
+                        print getter
+                        raise
         if setter:
             def wrapped_setter(p, user_data):
                 v = ctypes.cast(p, ctypes.POINTER(ctype))

@@ -33,7 +33,7 @@ from time import sleep, time
 import numpy as np
 from methods import *
 import atb
-from ctypes import c_int,c_bool,c_float,c_char_p
+from ctypes import c_int,c_bool,c_float,c_char_p,c_long
 import logging
 logger = logging.getLogger(__name__)
 
@@ -114,157 +114,270 @@ class MrGaze_Detector(object):
             return self.no_result
 
 
-    def set_ldb_enabled(self,enabled):
-        ''' set min neighbors of classifier ''' 
-        self.cfg.set('LBP','enabled', str(enabled))
 
-    def get_ldb_enabled(self):
-        ''' get setting of min neighbors in classifier '''
-        return c_bool(self.cfg.getboolean('LBP','enabled'))
-
-    def set_ldb_minneighbors(self,minneighbors):
-        ''' set min neighbors of classifier ''' 
-        self.cfg.set('LBP','minneighbors',str(minneighbors))
-
-    def get_ldb_minneighbors(self):
-        ''' get setting of min neighbors in classifier '''
-        return c_int(self.cfg.getint('LBP','minneighbors'))
-
-    def set_glint_percmax(self,glint_percmax):
-        ''' set min neighbors of classifier ''' 
-        self.cfg.set('PUPILSEG','glint_percmax',str(glint_percmax))
-
-    def get_glint_percmax(self):
-        ''' get setting of min neighbors in classifier '''
-        return c_int(self.cfg.getint('PUPILSEG','glint_percmax'))
-
-    def set_pupil_threshold(self,pupil_threshold):
-        ''' set min neighbors of classifier ''' 
-        self.cfg.set('PUPILSEG','pupil_threshold',str(pupil_threshold))
-
-    def get_pupil_threshold(self):
-        ''' get setting of min neighbors in classifier '''
-        return c_int(self.cfg.getint('PUPILSEG','pupil_threshold'))
-
-    def set_pupil_percmax(self,pupil_percmax):
-        ''' set max neighbors of classifier ''' 
-        self.cfg.set('PUPILSEG','pupil_percmax',str(pupil_percmax))
-
-    def get_pupil_percmax(self):
-        ''' get setting of max neighbors in classifier '''
-        return c_int(self.cfg.getint('PUPILSEG','pupil_percmax'))
+    # VIDEO section --------------
 
     def set_downsampling(self,downsampling):
-        ''' set max neighbors of classifier ''' 
+        ''' set amount of downsampling of the input image ''' 
         self.cfg.set('VIDEO','downsampling',str(downsampling))
 
     def get_downsampling(self):
-        ''' get setting of max neighbors in classifier '''
-        return c_int(self.cfg.getint('VIDEO','downsampling'))
+        ''' get amount of downsampling of the input image ''' 
+        return c_long(int(self.cfg.getint('VIDEO','downsampling')))
 
-    def set_ransac_maxiter(self,maxiterations):
-        ''' set max neighbors of classifier ''' 
-        self.cfg.set('RANSAC','maxiterations',str(maxiterations))
 
-    def get_ransac_maxiter(self):
-        ''' get setting of max neighbors in classifier '''
-        return c_int(self.cfg.getint('RANSAC','maxiterations'))
 
-    def set_ransac_maxrefine(self,maxrefinements):
-        ''' set max neighbors of classifier ''' 
-        self.cfg.set('RANSAC','maxrefinements',str(maxrefinements))
+    # PUPILDETECT section ---------------
 
-    def get_ransac_maxrefine(self):
-        ''' get setting of max neighbors in classifier '''
-        return c_int(self.cfg.getint('RANSAC','maxrefinements'))
+    def set_pupildetect_enabled(self, enable):
+        ''' enable/disable pupil detection '''
+        self.cfg.set('PUPILDETECT', 'enabled', str(enable))
 
-    def set_ransac_maxinlierperc(self,maxinlierperc):
-        ''' set max neighbors of classifier ''' 
-        self.cfg.set('RANSAC','maxinlierperc',str(maxinlierperc))
+    def get_pupildetect_enabled(self):
+        ''' check whether pupil detection is enabled/disabled'''
+        return c_bool(self.cfg.getboolean('PUPILDETECT','enabled'))
 
-    def get_ransac_maxinlierperc(self):
-        ''' get setting of max neighbors in classifier '''
-        return c_int(self.cfg.getint('RANSAC','maxinlierperc'))
 
-    def set_k_dil(self,k_dil):
-        ''' set max neighbors of classifier ''' 
-        self.cfg.set('PUPILSEG','k_dil',str(k_dil))
+    def set_specificity(self, specificity):
+        ''' set specificity of pupil detection '''
+        self.cfg.set('PUPILDETECT', 'specificity', str(specificity))
 
-    def get_k_dil(self):
-        ''' get setting of max neighbors in classifier '''
-        return c_int(self.cfg.getint('PUPILSEG','k_dil'))
+    def get_specificity(self):
+        ''' get specificity of pupil detection '''
+        return c_long(self.cfg.getint('PUPILDETECT','specificity'))
 
-    def set_k_inpaint(self,k_inpaint):
-        ''' set max neighbors of classifier ''' 
-        self.cfg.set('PUPILSEG','k_inpaint',str(k_inpaint))
 
-    def get_k_inpaint(self):
-        ''' get setting of max neighbors in classifier '''
-        return c_int(self.cfg.getint('PUPILSEG','k_inpaint'))
+    def set_scalefactor(self,scalefactor):
+        ''' set scalefactor in pupil detection '''
+        self.cfg.set('PUPILDETECT','scalefactor',str(scalefactor))
 
-    def set_gauss_sd(self,gauss_sd):
-        ''' set max neighbors of classifier ''' 
-        self.cfg.set('VIDEO','gauss_sd',str(gauss_sd))
+    def get_scalefactor(self):
+        ''' get scalefactor in pupil detection '''
+        return c_float(self.cfg.getfloat('PUPILDETECT','scalefactor'))
 
-    def get_gauss_sd(self):
-        ''' get setting of max neighbors in classifier '''
-        return c_int(self.cfg.getint('VIDEO','gauss_sd'))
 
-    def set_graphics(self,graphics):
-        ''' set max neighbors of classifier ''' 
-        self.cfg.set('OUTPUT', 'graphics', str(graphics))
+    
+    # PUPILSEG section ---------------
 
-    def get_graphics(self):
-        ''' get setting of max neighbors in classifier '''
-        return c_bool(self.cfg.getboolean('OUTPUT','graphics'))
-
-    def set_histogram_equalization(self,histogram_equalization):
-        ''' set max neighbors of classifier ''' 
-        self.cfg.set('PUPILSEG', 'histogram_equalization', str(histogram_equalization))
-
-    def get_histogram_equalization(self):
-        ''' get setting of max neighbors in classifier '''
-        return c_bool(self.cfg.getboolean('PUPILSEG','histogram_equalization'))
-
-    def set_method(self, method):
-        ''' set segmentation method '''
-        method_dict = {0:"otsu", 1:"manual", 2: "kmeans"} 
+    def set_pupilseg_method(self, method):
+        ''' set pupil segmentation method '''
+        method_dict = {0:"otsu", 1:"manual"}
         self.cfg.set('PUPILSEG', 'method', method_dict[method])
 
-    def get_method(self):
-        ''' get setting of max neighbors in classifier '''
+    def get_pupilseg_method(self):
+        ''' get pupil segmentation method '''
         method = self.cfg.get('PUPILSEG','method')
-        method_dict = {"otsu": 0, "manual": 1, "kmeans": 2} 
+        method_dict = {"otsu": 0, "manual": 1}
         return c_int(method_dict[method])
 
+    
+    def set_pupildiameterperc(self, pupildiameterperc):
+        ''' set pupildiameterperc in pupil segmentation '''
+        self.cfg.set('PUPILSEG','pupildiameterperc',str(pupildiameterperc))
+
+    def get_pupildiameterperc(self):
+        ''' get pupildiameterperc in pupil segmentation '''
+        return c_float(self.cfg.getfloat('PUPILSEG','pupildiameterperc'))
+
+    
+    def set_glintdiameterperc(self, glintdiameterperc):
+        ''' set glintdiameterperc in pupil segmentation '''
+        self.cfg.set('PUPILSEG','glintdiameterperc',str(glintdiameterperc))
+
+    def get_glintdiameterperc(self):
+        ''' get glintdiameterperc in pupil segmentation '''
+        return c_float(self.cfg.getfloat('PUPILSEG','glintdiameterperc'))
+
+    
+    def set_pupilthresholdperc(self, pupilthresholdperc):
+        ''' set pupilthresholdperc in pupil segmentation '''
+        self.cfg.set('PUPILSEG','pupilthresholdperc',str(pupilthresholdperc))
+
+    def get_pupilthresholdperc(self):
+        ''' get pupilthresholdperc in pupil segmentation '''
+        return c_float(self.cfg.getfloat('PUPILSEG','pupilthresholdperc'))
+
+    
+    def set_sigma(self, sigma):
+        ''' set sigma in pupil segmentation '''
+        self.cfg.set('PUPILSEG','sigma',str(sigma))
+
+    def get_sigma(self):
+        ''' get sigma in pupil segmentation '''
+        return c_float(self.cfg.getfloat('PUPILSEG','sigma'))
+
+
+
+    # PUPILFIT section -----------
+
+    def set_pupilfit_method(self, method):
+        ''' set pupilfit method '''
+        method_dict = {0:"ROBUST_LSQ", 1:"LSQ", 2:"RANSAC", 3:"RANSAC_SUPPORT"}
+        self.cfg.set('PUPILFIT', 'method', method_dict[method])
+
+    def get_pupilfit_method(self):
+        ''' set pupilfit method '''
+        method = self.cfg.get('PUPILFIT','method')
+        method_dict = {0:"ROBUST_LSQ", 1:"LSQ", 2:"RANSAC", 3:"RANSAC_SUPPORT"}
+        rev_method_dict = {y:x for x,y in method_dict.iteritems()}
+        return c_int(rev_method_dict[method])
+
+
+    def set_maxiterations(self,maxiterations):
+        ''' set max iterations in pupil fit '''
+        self.cfg.set('PUPILFIT','maxiterations',str(maxiterations))
+
+    def get_maxiterations(self):
+        ''' get mat iterations in pupil fit '''
+        return c_long(self.cfg.getint('PUPILFIT','maxiterations'))
+
+
+    def set_maxrefinements(self, maxrefinements):
+        ''' set max refinements in pupil fit '''
+        self.cfg.set('PUPILFIT','maxrefinements', str(maxrefinements))
+
+    def get_maxrefinements(self):
+        ''' get setting of max refinements in pupil fit '''
+        return c_long(self.cfg.getint('PUPILFIT','maxrefinements'))
+
+
+    def set_maxinlierperc(self,maxinlierperc):
+        ''' set max percent of inliers in pupil fit '''
+        self.cfg.set('PUPILFIT','maxinlierperc',str(maxinlierperc))
+
+    def get_maxinlierperc(self):
+        ''' get setting of max percent of inliers in pupil fit '''
+        return c_float(self.cfg.getfloat('PUPILFIT','maxinlierperc'))
+
+
+    
+    # ARTIFACTS section ------------------
+    
+    def set_mrclean_enabled(self,enabled):
+        ''' enable/disable MR artifact removal '''
+        self.cfg.set('ARTIFACTS','mrclean', str(enabled))
+
+    def get_mrclean_enabled(self):
+        ''' get whether MR artifact removal is enabled '''
+        return c_bool(self.cfg.getboolean('ARTIFACTS','mrclean'))
+
+
+    def set_zthresh(self, zthresh):
+        ''' set zthresh in artifact removal '''
+        self.cfg.set('ARTIFACTS','zthresh',str(zthresh))
+
+    def get_zthresh(self):
+        ''' get zthresh in artifact removal '''
+        return c_float(self.cfg.getfloat('ARTIFACTS','zthresh'))
+
+
+    def set_motioncorr_method(self, method):
+        ''' set motioncorr method '''
+        method_dict = {0:"highpass", 1:"knownfixations"}
+        self.cfg.set('ARTIFACTS', 'motioncorr', method_dict[method])
+
+    def get_motioncorr_method(self):
+        ''' set motioncorr method '''
+        method = self.cfg.get('ARTIFACTS','motioncorr')
+        method_dict = {0:"highpass", 1:"knownfixations"}
+        rev_method_dict = {y:x for x,y in method_dict.iteritems()}
+        return c_int(rev_method_dict[method])
+
+
+    def set_mocokernel(self,mocokernel):
+        ''' set mocokernel in ARTIFACTS '''
+        self.cfg.set('ARTIFACTS','mocokernel',str(mocokernel))
+
+    def get_mocokernel(self):
+        ''' get mocokernel in ARTIFACTS '''
+        return c_long(self.cfg.getint('ARTIFACTS','mocokernel'))
+
+
+
+    # OUTPUT section ------------
+
+    def set_graphics(self, enable):
+        ''' enable/disable graphics output '''
+        self.cfg.set('OUTPUT', 'graphics', str(enable))
+
+    def get_graphics(self):
+        ''' check whether graphics output is enabled '''
+        return c_bool(self.cfg.getboolean('OUTPUT','graphics'))
+
+
+    def set_verbose(self, enable):
+        ''' enable/disable verbose output '''
+        self.cfg.set('OUTPUT', 'verbose', str(enable))
+
+    def get_verbose(self):
+        ''' check whether verbose output is enabled '''
+        return c_bool(self.cfg.getboolean('OUTPUT','verbose'))
+
+
+
+    # add options to OSD 
     def create_atb_bar(self,pos):
         ''' create advanced tweak bar with setting for Mr. Gaze '''
         self.bar = atb.Bar(name = "Mr_Gaze_Detector", label="Mr. Gaze Controls",
             help="Mr. Gaze Params", color=(50, 50, 50), alpha=100,
             text='light', position=pos, refresh=.3, size=(200, 250))
-#        self.bar.fps = c_float(10)
-#        
-#        self.bar.add_var("fps", self.bar.fps, min=1)
-        self.bar.add_var("LPB", vtype=c_bool, setter=self.set_ldb_enabled, getter=self.get_ldb_enabled)
-        self.bar.add_var("min neighbors", vtype=c_int, setter=self.set_ldb_minneighbors, getter=self.get_ldb_minneighbors)
-        self.bar.pupilseg_method_enum = atb.enum("Method",{"otsu":0,
-                                                  "manual":1,
-                                                  "kmeans":2})
 
-        self.bar.add_var("Method", vtype=self.bar.pupilseg_method_enum, setter=self.set_method, getter=self.get_method, help="select pupil seg method")
+        # VIDEO section 
+        self.bar.add_var("downsampling", vtype=c_long, setter=self.set_downsampling, getter=self.get_downsampling, min=1, max=5)
 
-        self.bar.add_var("glint_percmax", vtype=c_int, setter=self.set_glint_percmax, getter=self.get_glint_percmax, min=0, max=100)
-        self.bar.add_var("pupil_threshold", vtype=c_int, setter=self.set_pupil_threshold, getter=self.get_pupil_threshold, min=0, max=255)
-        self.bar.add_var("p_percmax", vtype=c_int, setter=self.set_pupil_percmax, getter=self.get_pupil_percmax, min=0, max=100)
-        self.bar.add_var("downsampling", vtype=c_int, setter=self.set_downsampling, getter=self.get_downsampling, min=1, max=100)
-        self.bar.add_var("ransac_maxiter", vtype=c_int, setter=self.set_ransac_maxiter, getter=self.get_ransac_maxiter, min=0, max=100)
-        self.bar.add_var("ransac_maxrefine", vtype=c_int, setter=self.set_ransac_maxrefine, getter=self.get_ransac_maxrefine, min=0, max=100)
-        self.bar.add_var("ransac_maxinlierperc", vtype=c_int, setter=self.set_ransac_maxinlierperc, getter=self.get_ransac_maxinlierperc, min=0, max=100)
-        self.bar.add_var("k_inpaint", vtype=c_int, setter=self.set_k_inpaint, getter=self.get_k_inpaint, min=1, max=100)
-        self.bar.add_var("k_dil", vtype=c_int, setter=self.set_k_dil, getter=self.get_k_dil, min=1, max=100)
-        self.bar.add_var("gauss_sd", vtype=c_int, setter=self.set_gauss_sd, getter=self.get_gauss_sd, min=0, max=100)
-        self.bar.add_var("histogram_equalization", vtype=c_bool, setter=self.set_histogram_equalization, getter=self.get_histogram_equalization)
+        # PUPILDETECT section
+        self.bar.add_var("pupil detect", vtype=c_bool, setter=self.set_pupildetect_enabled, getter=self.get_pupildetect_enabled)
+
+        self.bar.add_var("specificity", vtype=c_long, setter=self.set_specificity, getter=self.get_specificity, min=0, max=100)
+
+        self.bar.add_var("scalefactor", vtype=c_float, setter=self.set_scalefactor, getter=self.get_scalefactor, min=0, max=2, step=0.01)
+
+
+        # PUPILSEG section
+        self.bar.pupilseg_method_enum = atb.enum("pupilseg M",{"otsu":0,
+                                                  "manual":1})
+        self.bar.add_var("Pupilseg M", vtype=self.bar.pupilseg_method_enum, setter=self.set_pupilseg_method, getter=self.get_pupilseg_method, help="select pupil seg method")
+
+        self.bar.add_var("pupildiameterperc", vtype=c_float, setter=self.set_pupildiameterperc, getter=self.get_pupildiameterperc, min=0, max=100)
+
+        self.bar.add_var("glintdiameterperc", vtype=c_float, setter=self.set_glintdiameterperc, getter=self.get_glintdiameterperc, min=0, max=100)
+
+        self.bar.add_var("pupilthresholdperc", vtype=c_float, setter=self.set_pupilthresholdperc, getter=self.get_pupilthresholdperc, min=0, max=100)
+
+        self.bar.add_var("sigma", vtype=c_float, setter=self.set_sigma, getter=self.get_sigma, min=0, max=5)
+
+
+        # PUPILFIT section -----------
+        method_dict = {0:"ROBUST_LSQ", 1:"LSQ", 2:"RANSAC", 3:"RANSAC_SUPPORT"}
+        rev_method_dict = {y:x for x,y in method_dict.iteritems()}
+        self.bar.pupilfit_method_enum = atb.enum("pupilfit M", rev_method_dict)
+
+        self.bar.add_var("Pupilfit M", vtype=self.bar.pupilfit_method_enum, setter=self.set_pupilfit_method, getter=self.get_pupilfit_method, help="select pupil fit method")
+
+        self.bar.add_var("maxiterations", vtype=c_long, setter=self.set_maxiterations, getter=self.get_maxiterations, min=0, max=25)
+
+        self.bar.add_var("maxrefinements", vtype=c_long, setter=self.set_maxrefinements, getter=self.get_maxrefinements, min=0, max=25)
+
+        self.bar.add_var("maxinlierperc", vtype=c_float, setter=self.set_maxinlierperc, getter=self.get_maxinlierperc, min=0, max=100)
+
+
+
+        # ARTIFACTS section ------------------
+        self.bar.add_var("MR clean", vtype=c_bool, setter=self.set_mrclean_enabled, getter=self.get_mrclean_enabled)
+
+        self.bar.add_var("zthresh", vtype=c_float, setter=self.set_zthresh, getter=self.get_zthresh, min=0, max=25)
+
+        method_dict = {0:"highpass", 1:"knownfixations"}
+        rev_method_dict = {y:x for x,y in method_dict.iteritems()}
+        self.bar.motioncorr_method_enum = atb.enum("MoCo Method", rev_method_dict)
+        self.bar.add_var("Motioncorr M", vtype=self.bar.motioncorr_method_enum, setter=self.set_motioncorr_method, getter=self.get_motioncorr_method, help="select motion correction method")
+
+        self.bar.add_var("mocokernel", vtype=c_long, setter=self.set_mocokernel, getter=self.get_mocokernel, min=0, max=250)
+
+        # OUTPUT section ------------
         self.bar.add_var("graphics", vtype=c_bool, setter=self.set_graphics, getter=self.get_graphics)
+
+        self.bar.add_var("verbose", vtype=c_bool, setter=self.set_verbose, getter=self.get_verbose)
 
 
     def cleanup(self):
