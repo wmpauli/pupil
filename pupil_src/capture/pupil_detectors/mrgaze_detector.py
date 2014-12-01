@@ -123,7 +123,7 @@ class MrGaze_Detector(object):
 
     def get_downsampling(self):
         ''' get amount of downsampling of the input image ''' 
-        return c_long(int(self.cfg.getint('VIDEO','downsampling')))
+        return c_int(int(self.cfg.getint('VIDEO','downsampling')))
 
 
 
@@ -144,7 +144,7 @@ class MrGaze_Detector(object):
 
     def get_specificity(self):
         ''' get specificity of pupil detection '''
-        return c_long(self.cfg.getint('PUPILDETECT','specificity'))
+        return c_int(self.cfg.getint('PUPILDETECT','specificity'))
 
 
     def set_scalefactor(self,scalefactor):
@@ -229,7 +229,7 @@ class MrGaze_Detector(object):
 
     def get_maxiterations(self):
         ''' get mat iterations in pupil fit '''
-        return c_long(self.cfg.getint('PUPILFIT','maxiterations'))
+        return c_int(self.cfg.getint('PUPILFIT','maxiterations'))
 
 
     def set_maxrefinements(self, maxrefinements):
@@ -238,7 +238,7 @@ class MrGaze_Detector(object):
 
     def get_maxrefinements(self):
         ''' get setting of max refinements in pupil fit '''
-        return c_long(self.cfg.getint('PUPILFIT','maxrefinements'))
+        return c_int(self.cfg.getint('PUPILFIT','maxrefinements'))
 
 
     def set_maxinlierperc(self,maxinlierperc):
@@ -290,7 +290,7 @@ class MrGaze_Detector(object):
 
     def get_mocokernel(self):
         ''' get mocokernel in ARTIFACTS '''
-        return c_long(self.cfg.getint('ARTIFACTS','mocokernel'))
+        return c_int(self.cfg.getint('ARTIFACTS','mocokernel'))
 
 
 
@@ -323,12 +323,12 @@ class MrGaze_Detector(object):
             text='light', position=pos, refresh=.3, size=(200, 250))
 
         # VIDEO section 
-        self.bar.add_var("downsampling", vtype=c_long, setter=self.set_downsampling, getter=self.get_downsampling, min=1, max=5)
+        self.bar.add_var("downsampling", vtype=c_int, setter=self.set_downsampling, getter=self.get_downsampling, min=1, max=5)
 
         # PUPILDETECT section
         self.bar.add_var("pupil detect", vtype=c_bool, setter=self.set_pupildetect_enabled, getter=self.get_pupildetect_enabled)
 
-        self.bar.add_var("specificity", vtype=c_long, setter=self.set_specificity, getter=self.get_specificity, min=0, max=100)
+        self.bar.add_var("specificity", vtype=c_int, setter=self.set_specificity, getter=self.get_specificity, min=0, max=100)
 
         self.bar.add_var("scalefactor", vtype=c_float, setter=self.set_scalefactor, getter=self.get_scalefactor, min=0, max=2, step=0.01)
 
@@ -354,9 +354,9 @@ class MrGaze_Detector(object):
 
         self.bar.add_var("Pupilfit M", vtype=self.bar.pupilfit_method_enum, setter=self.set_pupilfit_method, getter=self.get_pupilfit_method, help="select pupil fit method")
 
-        self.bar.add_var("maxiterations", vtype=c_long, setter=self.set_maxiterations, getter=self.get_maxiterations, min=0, max=25)
+        self.bar.add_var("maxiterations", vtype=c_int, setter=self.set_maxiterations, getter=self.get_maxiterations, min=0, max=25)
 
-        self.bar.add_var("maxrefinements", vtype=c_long, setter=self.set_maxrefinements, getter=self.get_maxrefinements, min=0, max=25)
+        self.bar.add_var("maxrefinements", vtype=c_int, setter=self.set_maxrefinements, getter=self.get_maxrefinements, min=0, max=25)
 
         self.bar.add_var("maxinlierperc", vtype=c_float, setter=self.set_maxinlierperc, getter=self.get_maxinlierperc, min=0, max=100)
 
@@ -372,7 +372,7 @@ class MrGaze_Detector(object):
         self.bar.motioncorr_method_enum = atb.enum("MoCo Method", rev_method_dict)
         self.bar.add_var("Motioncorr M", vtype=self.bar.motioncorr_method_enum, setter=self.set_motioncorr_method, getter=self.get_motioncorr_method, help="select motion correction method")
 
-        self.bar.add_var("mocokernel", vtype=c_long, setter=self.set_mocokernel, getter=self.get_mocokernel, min=0, max=250)
+        self.bar.add_var("mocokernel", vtype=c_int, setter=self.set_mocokernel, getter=self.get_mocokernel, min=0, max=250)
 
         # OUTPUT section ------------
         self.bar.add_var("graphics", vtype=c_bool, setter=self.set_graphics, getter=self.get_graphics)
