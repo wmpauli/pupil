@@ -32,7 +32,7 @@ class Pupil_Server(Plugin):
 
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.PUB)
-        self.address = create_string_buffer("tcp://127.0.0.1:5000",512)
+        self.address = create_string_buffer("tcp://" + self.getNetworkIp() + ":5000",512)
         self.set_server(self.address)
 
         help_str = "Pupil Message server: Using ZMQ and the *Publish-Subscribe* scheme"
@@ -45,6 +45,11 @@ class Pupil_Server(Plugin):
         self._bar.add_button("close", self.close)
 
         self.exclude_list = ['ellipse','pos_in_roi','major','minor','axes','angle','center']
+
+    def getNetworkIp(self):
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('pauli.caltech.edu', 0))
+        return s.getsockname()[0]
 
     def set_server(self,new_address):
         try:
