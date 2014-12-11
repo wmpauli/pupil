@@ -12,6 +12,7 @@ import atb
 import numpy as np
 from gl_utils import draw_gl_polyline_norm
 from ctypes import c_float,c_int,create_string_buffer
+import socket 
 
 import cv2
 import zmq
