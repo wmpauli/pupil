@@ -85,17 +85,17 @@ def eye(g_pool,cap_src,cap_size):
                 if bar.drawing_roi.value == 1:
                     bar.drawing_roi.value = 0
                     # now also set the AOI for the camera
-                    roi_tmp = u_r.get()
-                    try: 
-                        if hasattr(cap, 'capture'):
-                            cap.capture.set_size(x = roi_tmp[0], y = roi_tmp[1], width=roi_tmp[2] - roi_tmp[0], height=roi_tmp[3] - roi_tmp[1])
-                    except AttributeError:
-                        pass
+                    # roi_tmp = u_r.get()
+                    # try: 
+                    #     if hasattr(cap, 'capture'):
+                    #         cap.capture.set_size(x = roi_tmp[0], y = roi_tmp[1], width=roi_tmp[2] - roi_tmp[0], height=roi_tmp[3] - roi_tmp[1])
+                    # except AttributeError:
+                    #     pass
 
     def reset_aoi():
         u_r.setStart((0,0))
         u_r.setEnd((frame.img.shape[1], frame.img.shape[0]))
-        cap.capture.set_size()
+        # cap.capture.set_size()
 
     def on_pos(window,x, y):
         ''' seems to get called if mouse is pressed and moved ''' 
@@ -161,9 +161,9 @@ def eye(g_pool,cap_src,cap_size):
     u_r = Roi(frame.img.shape)
     u_r.set(load('roi',default=None))
 
-    roi_tmp = u_r.get()
-    if hasattr(cap, 'capture'):
-        cap.capture.set_size(x = roi_tmp[0], y = roi_tmp[1], width = roi_tmp[2] - roi_tmp[0], height = roi_tmp[3] - roi_tmp[1])
+    # roi_tmp = u_r.get()
+    # if hasattr(cap, 'capture'):
+    #     cap.capture.set_size(x = roi_tmp[0], y = roi_tmp[1], width = roi_tmp[2] - roi_tmp[0], height = roi_tmp[3] - roi_tmp[1])
 
 #    border = 100
 #    frame.img = frame.img[u_r.lY-border:u_r.uY+border,u_r.lX-border:u_r.uX+border]
@@ -204,8 +204,9 @@ def eye(g_pool,cap_src,cap_size):
 
     bar.add_var("SlowDown",bar.sleep, step=0.01,min=0.0)
     bar.add_var("SaveSettings&Exit", g_pool.quit)
-
-    cap.create_atb_bar(pos=(220,10))
+    
+    # create atb bar for camera
+    # cap.create_atb_bar(pos=(220,10))
 
     # create a bar for the detector
     pupil_detector.create_atb_bar(pos=(10,160))
@@ -239,6 +240,7 @@ def eye(g_pool,cap_src,cap_size):
     # skipped_frames = 0
     # event loop
     border = 0
+    skipped_frames = 0
     while not g_pool.quit.value:
         # Get an image from the grabber
         try:

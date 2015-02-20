@@ -116,7 +116,7 @@ def main():
         # world_src = 0
 
     # Camera video size in pixels (width,height)
-    eye_size = (1280,1024)
+    eye_size = (260,216) #(1280,1024)
     world_size = (640,480)
 
 

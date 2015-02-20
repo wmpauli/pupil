@@ -123,7 +123,7 @@ class MrGaze_Detector(object):
 
     def get_downsampling(self):
         ''' get amount of downsampling of the input image ''' 
-        return c_long(int(self.cfg.getint('VIDEO','downsampling')))
+        return c_int(int(self.cfg.getint('VIDEO','downsampling')))
 
 
 
@@ -144,7 +144,7 @@ class MrGaze_Detector(object):
 
     def get_specificity(self):
         ''' get specificity of pupil detection '''
-        return c_long(self.cfg.getint('PUPILDETECT','specificity'))
+        return c_int(self.cfg.getint('PUPILDETECT','specificity'))
 
 
     def set_scalefactor(self,scalefactor):
@@ -229,7 +229,7 @@ class MrGaze_Detector(object):
 
     def get_maxiterations(self):
         ''' get mat iterations in pupil fit '''
-        return c_long(self.cfg.getint('PUPILFIT','maxiterations'))
+        return c_int(self.cfg.getint('PUPILFIT','maxiterations'))
 
 
     def set_maxrefinements(self, maxrefinements):
@@ -238,7 +238,7 @@ class MrGaze_Detector(object):
 
     def get_maxrefinements(self):
         ''' get setting of max refinements in pupil fit '''
-        return c_long(self.cfg.getint('PUPILFIT','maxrefinements'))
+        return c_int(self.cfg.getint('PUPILFIT','maxrefinements'))
 
 
     def set_maxinlierperc(self,maxinlierperc):
