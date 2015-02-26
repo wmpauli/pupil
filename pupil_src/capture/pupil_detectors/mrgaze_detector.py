@@ -105,9 +105,8 @@ class MrGaze_Detector(object):
         pupil_ellipse['norm_pupil'] = norm_center
         pupil_ellipse['center'] = e_img_center
         pupil_ellipse['timestamp'] = frame.timestamp
-
         # return pupil if we found one, otherwise return no_result
-        if np.isnan(e[0][0]) == False:
+        if np.isnan(e[0][0]) == False and not blink:
             return pupil_ellipse # all this will be sent to the world process, you can add whateever you need to this.
         else:
             self.no_result['timestamp'] = frame.timestamp
