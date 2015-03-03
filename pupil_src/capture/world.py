@@ -302,7 +302,9 @@ def world(g_pool,cap_src,cap_size):
     #load gaze_display plugin
     g_pool.plugins.append(Display_Recent_Gaze(g_pool))
 
-
+    # start pupil server automatically
+    toggle_server()
+    
     # Event loop
     while not g_pool.quit.value:
 
