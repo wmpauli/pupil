@@ -53,11 +53,25 @@ class FakeCapture(object):
             logger.error("Invalid timebase variable type. Will use default system timebase")
             self.timebase = c_double(0)
 
+    def add_plus(self, grey, pos=(.5,.5)):
+        ''' add a cross/plus a position on an grey image '''
+        w,h = grey.shape
+        p_w, p_h = grey.shape[0]*.05, grey.shape[0]*.05
+        x, y = w * pos[0], h * pos[1]
+        grey[int(x - p_w/2):int(x + p_w/2),y] = 220
+        grey[x,int(y - p_h/2):int(y + p_h/2)] = 220
+        return grey
+
     def make_img(self):
-        c_w ,c_h = max(1,self.size[0]/20),max(1,self.size[1]/20)
-        coarse = np.random.randint(0,255,size=(c_h,c_w,3)).astype(np.uint8)
+        c_w ,c_h = max(1,self.size[0]),max(1,self.size[1])
+        # coarse = np.random.randint(0,255,size=(c_h,c_w,3)).astype(np.uint8)
         # self.img = np.ones((size[1],size[0],3),dtype=np.uint8)
-        self.img = cv2.resize(coarse,self.size,interpolation=cv2.INTER_NEAREST)
+        grey = np.ones(shape=(c_h,c_w),dtype=np.uint8) * 40
+        #        grey = cv2.resize(grey,self.size,interpolation=cv2.INTER_NEAREST)
+        for x in [.25, .5, .75]:
+            for y in [.25, .5, .75]:
+                grey = self.add_plus(grey,(x,y))
+        self.img = cv2.cvtColor(grey,cv2.COLOR_GRAY2RGB)
 
     def fastmode(self):
         self.fps.value = 2000
