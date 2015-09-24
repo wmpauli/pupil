@@ -11,6 +11,7 @@
 '''
 
 import sys, os, platform
+import argparse
 from time import sleep
 from ctypes import c_bool, c_int,c_double
 if platform.system() == 'Darwin':
@@ -95,16 +96,23 @@ else:
 def main():
     # To assign camera by name: put string(s) in list
 
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='GUI for gaze tracking and pupillometry')
+    parser.add_argument('-i', dest='filename', type=str, help="Work with existing video recording, instead of live feed", default='')
+
+    args = parser.parse_args()
+
+    eye_src = args.filename
+    print eye_src
+
     # to use a pre-recorded video.
     # Use a string to specify the path to your video file as demonstrated below
-    eye_filename = 'eye.avi'
-    if os.path.exists(eye_filename):
-        print "using video file as eye"
-        eye_src = eye_filename
-    else:
+    if args.filename == '':
         eye_src = ["UI154xLE-M", "USB Camera-B4.09.24.1", "FaceTime Camera (Built-in)", "Microsoft", "6000","Integrated Camera"]
         # to assign cameras directly, using integers as demonstrated below
         # eye_src = 1
+    else:
+        eye_src = args.filename
 
         
     world_filename = 'world.mp4'
