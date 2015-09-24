@@ -98,30 +98,27 @@ def main():
 
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='GUI for gaze tracking and pupillometry')
-    parser.add_argument('-i', dest='filename', type=str, help="Work with existing video recording, instead of live feed", default='')
+    parser.add_argument('-eye', dest='eye_file', type=str, help="Work with existing video recording, instead of live feed", default='')
+    parser.add_argument('-world', dest='world_file', type=str, help="Work with existing video recording, instead of live feed", default='')
 
     args = parser.parse_args()
 
-    eye_src = args.filename
-    print eye_src
-
     # to use a pre-recorded video.
     # Use a string to specify the path to your video file as demonstrated below
-    if args.filename == '':
+    if args.eye_file == '':
         eye_src = ["UI154xLE-M", "USB Camera-B4.09.24.1", "FaceTime Camera (Built-in)", "Microsoft", "6000","Integrated Camera"]
         # to assign cameras directly, using integers as demonstrated below
         # eye_src = 1
     else:
-        eye_src = args.filename
+#        print "Using provide file: %s" % args.filename
+        eye_src = args.eye_file
 
-        
-    world_filename = 'world.mp4'
-    if os.path.exists(world_filename):
-        world_src = world_filename
-    else:
+    if args.world_file == '':
         world_src = ["Logitech Camera","(046d:081d)","C510","B525", "C525","C615","C920","C930e"]
         # to assign cameras directly, using integers as demonstrated below
         # world_src = 0
+    else:
+        world_src = args.world_file
 
     # Camera video size in pixels (width,height)
     eye_size = (260,216) #(1280,1024)
