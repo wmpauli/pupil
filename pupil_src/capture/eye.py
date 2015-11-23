@@ -316,7 +316,7 @@ def eye(g_pool,cap_src,cap_size):
 
             if result['norm_pupil'] is not None and bar.draw_pupil.value:
                 if result.has_key('axes'):
-                    pts = cv2.ellipse2Poly( (int(result['center'][0]),int(result['center'][1])),
+                    pts = cv2.ellipse2Poly( (int(result['center'][0] + 1),int(result['center'][1] + 1)),
                                             (int(result["axes"][0]/2),int(result["axes"][1]/2)),
                                             int(result["angle"]),0,360,15)
                     draw_gl_polyline(pts,(1.,0,0,.5))

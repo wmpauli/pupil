@@ -81,16 +81,18 @@ class MrGaze_Detector(object):
         #downsampling = self.cfg.getfloat('VIDEO', 'downsampling')
         #if downsampling > 1:
         #    gray_img = Downsample(gray_img, downsampling)
+        
+        # do quick preproc
+        pupil_img, art_power = Preproc(pupil_img, self.cfg)
 
         # call Mike's amazing PupilometryEngine
-        pupil_img, art_power = Preproc(pupil_img, self.cfg)
         e, roi_rect, blink, glint, rgb_frame = PupilometryEngine(pupil_img, self.cascade, self.cfg)
-
+        
         # get ROI properties? Not sure we need to call this as often (check canny_detector)
         p_r = Roi(pupil_img.shape)
         p_r.set((0,0,None,None))
         w = img.shape[0]/2
-
+        
         pupil_ellipse = {}
         pupil_ellipse['confidence'] = .9
         pupil_ellipse['ellipse'] = e
@@ -169,33 +171,21 @@ class MrGaze_Detector(object):
         method_dict = {"otsu": 0, "manual": 1}
         return c_int(method_dict[method])
 
-    
-    def set_pupildiameterperc(self, pupildiameterperc):
-        ''' set pupildiameterperc in pupil segmentation '''
-        self.cfg.set('PUPILSEG','pupildiameterperc',str(pupildiameterperc))
+    def set_pupilhigh(self,pupilhigh):
+        ''' set max percent of inliers in pupil fit '''
+        self.cfg.set('PUPILSEG','pupilhigh',str(pupilhigh))
 
-    def get_pupildiameterperc(self):
-        ''' get pupildiameterperc in pupil segmentation '''
-        return c_float(self.cfg.getfloat('PUPILSEG','pupildiameterperc'))
+    def get_pupilhigh(self):
+        ''' get setting of max percent of inliers in pupil fit '''
+        return c_float(self.cfg.getfloat('PUPILSEG','pupilhigh'))
 
-    
-    def set_glintdiameterperc(self, glintdiameterperc):
-        ''' set glintdiameterperc in pupil segmentation '''
-        self.cfg.set('PUPILSEG','glintdiameterperc',str(glintdiameterperc))
+    def set_glintlow(self,glintlow):
+        ''' set max percent of inliers in pupil fit '''
+        self.cfg.set('PUPILSEG','glintlow',str(glintlow))
 
-    def get_glintdiameterperc(self):
-        ''' get glintdiameterperc in pupil segmentation '''
-        return c_float(self.cfg.getfloat('PUPILSEG','glintdiameterperc'))
-
-    
-    def set_pupilthresholdperc(self, pupilthresholdperc):
-        ''' set pupilthresholdperc in pupil segmentation '''
-        self.cfg.set('PUPILSEG','pupilthresholdperc',str(pupilthresholdperc))
-
-    def get_pupilthresholdperc(self):
-        ''' get pupilthresholdperc in pupil segmentation '''
-        return c_float(self.cfg.getfloat('PUPILSEG','pupilthresholdperc'))
-
+    def get_glintlow(self):
+        ''' get setting of max percent of inliers in pupil fit '''
+        return c_float(self.cfg.getfloat('PUPILSEG','glintlow'))
     
     def set_sigma(self, sigma):
         ''' set sigma in pupil segmentation '''
@@ -205,6 +195,33 @@ class MrGaze_Detector(object):
         ''' get sigma in pupil segmentation '''
         return c_float(self.cfg.getfloat('PUPILSEG','sigma'))
 
+    # def set_pupildiameterperc(self, pupildiameterperc):
+    #     ''' set pupildiameterperc in pupil segmentation '''
+    #     self.cfg.set('PUPILSEG','pupildiameterperc',str(pupildiameterperc))
+
+    # def get_pupildiameterperc(self):
+    #     ''' get pupildiameterperc in pupil segmentation '''
+    #     return c_float(self.cfg.getfloat('PUPILSEG','pupildiameterperc'))
+
+    
+    # def set_glintdiameterperc(self, glintdiameterperc):
+    #     ''' set glintdiameterperc in pupil segmentation '''
+    #     self.cfg.set('PUPILSEG','glintdiameterperc',str(glintdiameterperc))
+
+    # def get_glintdiameterperc(self):
+    #     ''' get glintdiameterperc in pupil segmentation '''
+    #     return c_float(self.cfg.getfloat('PUPILSEG','glintdiameterperc'))
+
+    
+    # def set_pupilthresholdperc(self, pupilthresholdperc):
+    #     ''' set pupilthresholdperc in pupil segmentation '''
+    #     self.cfg.set('PUPILSEG','pupilthresholdperc',str(pupilthresholdperc))
+
+    # def get_pupilthresholdperc(self):
+    #     ''' get pupilthresholdperc in pupil segmentation '''
+    #     return c_float(self.cfg.getfloat('PUPILSEG','pupilthresholdperc'))
+
+    
 
 
     # PUPILFIT section -----------
@@ -247,6 +264,23 @@ class MrGaze_Detector(object):
     def get_maxinlierperc(self):
         ''' get setting of max percent of inliers in pupil fit '''
         return c_float(self.cfg.getfloat('PUPILFIT','maxinlierperc'))
+
+
+    def set_perclow(self,perclow):
+        ''' set max percent of inliers in pupil fit '''
+        self.cfg.set('PREPROC','perclow',str(perclow))
+
+    def get_perclow(self):
+        ''' get setting of max percent of inliers in pupil fit '''
+        return c_float(self.cfg.getfloat('PREPROC','perclow'))
+
+    def set_perchigh(self,perchigh):
+        ''' set max percent of inliers in pupil fit '''
+        self.cfg.set('PREPROC','perchigh',str(perchigh))
+
+    def get_perchigh(self):
+        ''' get setting of max percent of inliers in pupil fit '''
+        return c_float(self.cfg.getfloat('PREPROC','perchigh'))
 
 
     
@@ -337,11 +371,15 @@ class MrGaze_Detector(object):
                                                   "manual":1})
         self.bar.add_var("Pupilseg M", vtype=self.bar.pupilseg_method_enum, setter=self.set_pupilseg_method, getter=self.get_pupilseg_method, help="select pupil seg method")
 
-        self.bar.add_var("pupildiameterperc", vtype=c_float, setter=self.set_pupildiameterperc, getter=self.get_pupildiameterperc, min=0, max=100)
+#        self.bar.add_var("pupildiameterperc", vtype=c_float, setter=self.set_pupildiameterperc, getter=self.get_pupildiameterperc, min=0, max=100)
 
-        self.bar.add_var("glintdiameterperc", vtype=c_float, setter=self.set_glintdiameterperc, getter=self.get_glintdiameterperc, min=0, max=100)
+#        self.bar.add_var("glintdiameterperc", vtype=c_float, setter=self.set_glintdiameterperc, getter=self.get_glintdiameterperc, min=0, max=100)
 
-        self.bar.add_var("pupilthresholdperc", vtype=c_float, setter=self.set_pupilthresholdperc, getter=self.get_pupilthresholdperc, min=0, max=100)
+        #        self.bar.add_var("pupilthresholdperc", vtype=c_float, setter=self.set_pupilthresholdperc, getter=self.get_pupilthresholdperc, min=0, max=100)
+
+        self.bar.add_var("pupilhigh", vtype=c_float, setter=self.set_pupilhigh, getter=self.get_pupilhigh, min=0, max=100)
+
+        self.bar.add_var("glintlow", vtype=c_float, setter=self.set_glintlow, getter=self.get_glintlow, min=0, max=100)
 
         self.bar.add_var("sigma", vtype=c_float, setter=self.set_sigma, getter=self.get_sigma, min=0, max=5)
 
@@ -359,6 +397,13 @@ class MrGaze_Detector(object):
 
         self.bar.add_var("maxinlierperc", vtype=c_float, setter=self.set_maxinlierperc, getter=self.get_maxinlierperc, min=0, max=100)
 
+        # PREPROC section -------------
+
+        self.bar.add_var("perclow", vtype=c_float, setter=self.set_perclow, getter=self.get_perclow, min=0, max=100)
+
+        self.bar.add_var("perchigh", vtype=c_float, setter=self.set_perchigh, getter=self.get_perchigh, min=0, max=100)
+
+        
 
 
         # # ARTIFACTS section ------------------

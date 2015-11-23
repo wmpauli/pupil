@@ -68,8 +68,8 @@ class FakeCapture(object):
         # self.img = np.ones((size[1],size[0],3),dtype=np.uint8)
         grey = np.ones(shape=(c_h,c_w),dtype=np.uint8) * 40
         #        grey = cv2.resize(grey,self.size,interpolation=cv2.INTER_NEAREST)
-        for x in [.1, .5, .9]:
-            for y in [.1, .5, .9]:
+        for x in [.125, .5, .875]:
+            for y in [.125, .5, .875]:
                 grey = self.add_plus(grey,(x,y))
         self.img = cv2.cvtColor(grey,cv2.COLOR_GRAY2RGB)
 
