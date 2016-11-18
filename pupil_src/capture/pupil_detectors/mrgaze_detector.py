@@ -54,9 +54,10 @@ class MrGaze_Detector(object):
         self.gpool = gpool
 
         self.cfg = config.LoadConfig(os.path.join(gpool.user_dir))
-#        # Create a new parser
-#        self.cfg = ConfigParser.ConfigParser()
-#        self.cfg = config.InitConfig(self.cfg)
+        #        # Create a new parser
+        #        self.cfg = ConfigParser.ConfigParser()
+        #        self.cfg = config.InitConfig(self.cfg)
+        self.cfg.set('PUPILSEG', 'manualroi', [0.5, 0.5, 1.0])
         
         # Init Cascade Classfier
         mrclean_root = utils._package_root()
@@ -157,7 +158,7 @@ class MrGaze_Detector(object):
 
     
     # PUPILSEG section ---------------
-
+    
     def set_pupilseg_method(self, method):
         ''' set pupil segmentation method '''
         method_dict = {0:"otsu", 1:"manual"}
@@ -193,31 +194,31 @@ class MrGaze_Detector(object):
     #     ''' get sigma in pupil segmentation '''
     #     return c_float(self.cfg.getfloat('PUPILSEG','sigma'))
 
-    # def set_pupildiameterperc(self, pupildiameterperc):
-    #     ''' set pupildiameterperc in pupil segmentation '''
-    #     self.cfg.set('PUPILSEG','pupildiameterperc',str(pupildiameterperc))
+    def set_pupildiameterperc(self, pupildiameterperc):
+        ''' set pupildiameterperc in pupil segmentation '''
+        self.cfg.set('PUPILSEG','pupildiameterperc',str(pupildiameterperc))
 
-    # def get_pupildiameterperc(self):
-    #     ''' get pupildiameterperc in pupil segmentation '''
-    #     return c_float(self.cfg.getfloat('PUPILSEG','pupildiameterperc'))
-
-    
-    # def set_glintdiameterperc(self, glintdiameterperc):
-    #     ''' set glintdiameterperc in pupil segmentation '''
-    #     self.cfg.set('PUPILSEG','glintdiameterperc',str(glintdiameterperc))
-
-    # def get_glintdiameterperc(self):
-    #     ''' get glintdiameterperc in pupil segmentation '''
-    #     return c_float(self.cfg.getfloat('PUPILSEG','glintdiameterperc'))
+    def get_pupildiameterperc(self):
+        ''' get pupildiameterperc in pupil segmentation '''
+        return c_float(self.cfg.getfloat('PUPILSEG','pupildiameterperc'))
 
     
-    # def set_pupilthresholdperc(self, pupilthresholdperc):
-    #     ''' set pupilthresholdperc in pupil segmentation '''
-    #     self.cfg.set('PUPILSEG','pupilthresholdperc',str(pupilthresholdperc))
+    def set_glintdiameterperc(self, glintdiameterperc):
+        ''' set glintdiameterperc in pupil segmentation '''
+        self.cfg.set('PUPILSEG','glintdiameterperc',str(glintdiameterperc))
 
-    # def get_pupilthresholdperc(self):
-    #     ''' get pupilthresholdperc in pupil segmentation '''
-    #     return c_float(self.cfg.getfloat('PUPILSEG','pupilthresholdperc'))
+    def get_glintdiameterperc(self):
+        ''' get glintdiameterperc in pupil segmentation '''
+        return c_float(self.cfg.getfloat('PUPILSEG','glintdiameterperc'))
+
+    
+    def set_pupilthresholdperc(self, pupilthresholdperc):
+        ''' set pupilthresholdperc in pupil segmentation '''
+        self.cfg.set('PUPILSEG','pupilthresholdperc',str(pupilthresholdperc))
+
+    def get_pupilthresholdperc(self):
+        ''' get pupilthresholdperc in pupil segmentation '''
+        return c_float(self.cfg.getfloat('PUPILSEG','pupilthresholdperc'))
 
     
 
@@ -304,13 +305,13 @@ class MrGaze_Detector(object):
 
     def set_motioncorr_method(self, method):
         ''' set motioncorr method '''
-        method_dict = {0:"highpass", 1:"knownfixations"}
+        method_dict = {0:"glint", 1:"highpass", 2:"knownfixations", 3:"None"}
         self.cfg.set('ARTIFACTS', 'motioncorr', method_dict[method])
 
     def get_motioncorr_method(self):
         ''' set motioncorr method '''
         method = self.cfg.get('ARTIFACTS','motioncorr')
-        method_dict = {0:"highpass", 1:"knownfixations"}
+        method_dict = {0:"glint", 1:"highpass", 2:"knownfixations", 3:"None"}
         rev_method_dict = {y:x for x,y in method_dict.iteritems()}
         return c_long(rev_method_dict[method])
 
@@ -369,11 +370,11 @@ class MrGaze_Detector(object):
                                                   "manual":1})
         self.bar.add_var("Pupilseg M", vtype=self.bar.pupilseg_method_enum, setter=self.set_pupilseg_method, getter=self.get_pupilseg_method, help="select pupil seg method")
 
-#        self.bar.add_var("pupildiameterperc", vtype=c_float, setter=self.set_pupildiameterperc, getter=self.get_pupildiameterperc, min=0, max=100)
+       self.bar.add_var("pupildiameterperc", vtype=c_float, setter=self.set_pupildiameterperc, getter=self.get_pupildiameterperc, min=0, max=100)
 
-#        self.bar.add_var("glintdiameterperc", vtype=c_float, setter=self.set_glintdiameterperc, getter=self.get_glintdiameterperc, min=0, max=100)
+       self.bar.add_var("glintdiameterperc", vtype=c_float, setter=self.set_glintdiameterperc, getter=self.get_glintdiameterperc, min=0, max=100)
 
-        #        self.bar.add_var("pupilthresholdperc", vtype=c_float, setter=self.set_pupilthresholdperc, getter=self.get_pupilthresholdperc, min=0, max=100)
+               self.bar.add_var("pupilthresholdperc", vtype=c_float, setter=self.set_pupilthresholdperc, getter=self.get_pupilthresholdperc, min=0, max=100)
 
         # self.bar.add_var("pupilhigh", vtype=c_float, setter=self.set_pupilhigh, getter=self.get_pupilhigh, min=0, max=100)
 
