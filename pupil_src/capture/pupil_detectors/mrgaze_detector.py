@@ -37,9 +37,7 @@ from ctypes import c_int,c_bool,c_float,c_char_p,c_long
 import logging
 logger = logging.getLogger(__name__)
 
-from mrgaze import utils, config
-from mrgaze.pupilometry import PupilometryEngine
-from mrgaze.media import Preproc
+from mrgaze import media, utils, config, calibrate, report, engine
 import ConfigParser
 import os
 
@@ -83,10 +81,10 @@ class MrGaze_Detector(object):
         #    gray_img = Downsample(gray_img, downsampling)
         
         # do quick preproc
-        pupil_img, art_power = Preproc(pupil_img, self.cfg)
+        pupil_img, art_power = media.Preproc(pupil_img, self.cfg)
 
         # call Mike's amazing PupilometryEngine
-        e, roi_rect, blink, glint, rgb_frame = PupilometryEngine(pupil_img, self.cascade, self.cfg)
+        e, roi_rect, blink, glint, rgb_frame = engine.PupilometryEngine(pupil_img, self.cascade, self.cfg)
         
         # get ROI properties? Not sure we need to call this as often (check canny_detector)
         p_r = Roi(pupil_img.shape)
@@ -171,29 +169,29 @@ class MrGaze_Detector(object):
         method_dict = {"otsu": 0, "manual": 1}
         return c_int(method_dict[method])
 
-    def set_pupilhigh(self,pupilhigh):
-        ''' set max percent of inliers in pupil fit '''
-        self.cfg.set('PUPILSEG','pupilhigh',str(pupilhigh))
+    # def set_pupilhigh(self,pupilhigh):
+    #     ''' set max percent of inliers in pupil fit '''
+    #     self.cfg.set('PUPILSEG','pupilhigh',str(pupilhigh))
 
-    def get_pupilhigh(self):
-        ''' get setting of max percent of inliers in pupil fit '''
-        return c_float(self.cfg.getfloat('PUPILSEG','pupilhigh'))
+    # def get_pupilhigh(self):
+    #     ''' get setting of max percent of inliers in pupil fit '''
+    #     return c_float(self.cfg.getfloat('PUPILSEG','pupilhigh'))
 
-    def set_glintlow(self,glintlow):
-        ''' set max percent of inliers in pupil fit '''
-        self.cfg.set('PUPILSEG','glintlow',str(glintlow))
+    # def set_glintlow(self,glintlow):
+    #     ''' set max percent of inliers in pupil fit '''
+    #     self.cfg.set('PUPILSEG','glintlow',str(glintlow))
 
-    def get_glintlow(self):
-        ''' get setting of max percent of inliers in pupil fit '''
-        return c_float(self.cfg.getfloat('PUPILSEG','glintlow'))
+    # def get_glintlow(self):
+    #     ''' get setting of max percent of inliers in pupil fit '''
+    #     return c_float(self.cfg.getfloat('PUPILSEG','glintlow'))
     
-    def set_sigma(self, sigma):
-        ''' set sigma in pupil segmentation '''
-        self.cfg.set('PUPILSEG','sigma',str(sigma))
+    # def set_sigma(self, sigma):
+    #     ''' set sigma in pupil segmentation '''
+    #     self.cfg.set('PUPILSEG','sigma',str(sigma))
 
-    def get_sigma(self):
-        ''' get sigma in pupil segmentation '''
-        return c_float(self.cfg.getfloat('PUPILSEG','sigma'))
+    # def get_sigma(self):
+    #     ''' get sigma in pupil segmentation '''
+    #     return c_float(self.cfg.getfloat('PUPILSEG','sigma'))
 
     # def set_pupildiameterperc(self, pupildiameterperc):
     #     ''' set pupildiameterperc in pupil segmentation '''
@@ -377,11 +375,11 @@ class MrGaze_Detector(object):
 
         #        self.bar.add_var("pupilthresholdperc", vtype=c_float, setter=self.set_pupilthresholdperc, getter=self.get_pupilthresholdperc, min=0, max=100)
 
-        self.bar.add_var("pupilhigh", vtype=c_float, setter=self.set_pupilhigh, getter=self.get_pupilhigh, min=0, max=100)
+        # self.bar.add_var("pupilhigh", vtype=c_float, setter=self.set_pupilhigh, getter=self.get_pupilhigh, min=0, max=100)
 
-        self.bar.add_var("glintlow", vtype=c_float, setter=self.set_glintlow, getter=self.get_glintlow, min=0, max=100)
+        # self.bar.add_var("glintlow", vtype=c_float, setter=self.set_glintlow, getter=self.get_glintlow, min=0, max=100)
 
-        self.bar.add_var("sigma", vtype=c_float, setter=self.set_sigma, getter=self.get_sigma, min=0, max=5)
+        # self.bar.add_var("sigma", vtype=c_float, setter=self.set_sigma, getter=self.get_sigma, min=0, max=5)
 
 
         # PUPILFIT section -----------
