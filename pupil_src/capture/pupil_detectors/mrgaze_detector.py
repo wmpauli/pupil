@@ -57,7 +57,7 @@ class MrGaze_Detector(object):
         #        # Create a new parser
         #        self.cfg = ConfigParser.ConfigParser()
         #        self.cfg = config.InitConfig(self.cfg)
-        self.cfg.set('PUPILSEG', 'manualroi', [0.5, 0.5, 1.0])
+        # self.cfg.set('PUPILSEG', 'manualroi', [0.5, 0.5, 1.0])
         
         # Init Cascade Classfier
         mrclean_root = utils._package_root()
@@ -370,11 +370,11 @@ class MrGaze_Detector(object):
                                                   "manual":1})
         self.bar.add_var("Pupilseg M", vtype=self.bar.pupilseg_method_enum, setter=self.set_pupilseg_method, getter=self.get_pupilseg_method, help="select pupil seg method")
 
-       self.bar.add_var("pupildiameterperc", vtype=c_float, setter=self.set_pupildiameterperc, getter=self.get_pupildiameterperc, min=0, max=100)
+        self.bar.add_var("pupildiameterperc", vtype=c_float, setter=self.set_pupildiameterperc, getter=self.get_pupildiameterperc, min=0, max=100)
 
-       self.bar.add_var("glintdiameterperc", vtype=c_float, setter=self.set_glintdiameterperc, getter=self.get_glintdiameterperc, min=0, max=100)
+        self.bar.add_var("glintdiameterperc", vtype=c_float, setter=self.set_glintdiameterperc, getter=self.get_glintdiameterperc, min=0, max=100)
 
-               self.bar.add_var("pupilthresholdperc", vtype=c_float, setter=self.set_pupilthresholdperc, getter=self.get_pupilthresholdperc, min=0, max=100)
+        self.bar.add_var("pupilthresholdperc", vtype=c_float, setter=self.set_pupilthresholdperc, getter=self.get_pupilthresholdperc, min=0, max=100)
 
         # self.bar.add_var("pupilhigh", vtype=c_float, setter=self.set_pupilhigh, getter=self.get_pupilhigh, min=0, max=100)
 

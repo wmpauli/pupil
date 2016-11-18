@@ -71,9 +71,11 @@ class Recorder(Plugin):
             self.audio_writer = None
 
         video_path = os.path.join(self.rec_path, "world.avi")
-        self.writer = cv2.VideoWriter(video_path, cv2.cv.CV_FOURCC(*'DIVX'), fps, (img_shape[1], img_shape[0]))
+        fourcc = cv2.VideoWriter_fourcc('m','p','4','v')
+
         self.height = img_shape[0]
         self.width = img_shape[1]
+        self.writer = cv2.VideoWriter(video_path, fourcc, fps, (self.width, self.height))
         # positions path to eye process
         if self.record_eye:
             self.eye_tx.send(self.rec_path)
